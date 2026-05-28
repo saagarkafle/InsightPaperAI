@@ -520,7 +520,7 @@ html, body, .stApp {
 }
 
 hr { border-color: rgba(255, 255, 255, 0.08) !important; margin: 20px 0 !important; }
-#MainMenu, footer, .stDeployButton { display: none !important; }
+#MainMenu, footer, .stDeployButton, [data-testid="stDeployButton"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #121212; }
