@@ -290,8 +290,6 @@ html, body, .stApp {
 }
 
 .findings-stack {
-    max-height: 220px;
-    overflow: auto;
     padding-right: 4px;
 }
 
@@ -786,11 +784,22 @@ else:
                 <div class="panel">
                     <div class="panel-title">Key findings</div>
                     <div class="findings-stack">{findings_html}</div>
-                    <div style="height:8px"></div>
-                    <div>{keywords_html}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+            if keywords_html:
+                st.markdown("<div style='height:12px'></div>",
+                            unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div class="panel">
+                        <div class="panel-title">Topics</div>
+                        <div>{keywords_html}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         tab_chat, tab_figures, tab_search, tab_stats = st.tabs([
@@ -822,6 +831,8 @@ else:
             st.session_state.active_paper_id = None
             st.session_state.messages = []
             st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
         st.markdown(
