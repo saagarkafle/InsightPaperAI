@@ -1,15 +1,9 @@
-import os
-
 import streamlit as st
-
-from src.llm_qa import generate_paper_summary
-from src.pdf_parser import parse_paper
-from src.rag_pipeline import chunk_text, make_paper_id, upsert_paper
-from src.state import APP_STATE_FILE, save_app_state
-from src.stream_helpers import init_clients
 
 
 def render_landing():
+    uploaded = None
+    process_requested = False
     hero_left, hero_right = st.columns([1.35, 0.9], gap="large")
 
     with hero_left:
@@ -27,7 +21,6 @@ def render_landing():
         st.markdown("""
         <div class="panel upload-panel compact">
             <div class="panel-title">Start a session</div>
-            <div class="upload-note">200MB per file • PDF only</div>
         """, unsafe_allow_html=True)
         uploaded = st.file_uploader(
             "Upload PDF", type=["pdf"], label_visibility="collapsed")
@@ -37,54 +30,11 @@ def render_landing():
         """, unsafe_allow_html=True)
 
         if uploaded:
-            if st.button("Process and index paper", use_container_width=True, disabled=st.session_state.processing):
-                try:
-                    st.session_state.processing = True
-                    embedder, index, groq_client = init_clients()
-                    st.session_state.embedder = embedder
-                    st.session_state.index = index
-                    st.session_state.groq_client = groq_client
-
-                    with st.status("Processing paper...", expanded=True) as status:
-                        st.write("Extracting text and figures from PDF...")
-                        paper = parse_paper(uploaded, uploaded.name)
-
-                        st.write(f"Chunking {paper.word_count:,} words...")
-                        chunks = chunk_text(
-                            paper.full_text, chunk_size=500, overlap=100)
-
-                        st.write(
-                            f"Generating embeddings for {len(chunks)} chunks...")
-                        paper_id = make_paper_id(uploaded.name)
-                        count = upsert_paper(
-                            paper_id=paper_id, paper_title=paper.title, chunks=chunks, embedder=embedder, index=index)
-
-                        st.write("Generating paper summary...")
-                        summary = generate_paper_summary(
-                            paper.full_text, groq_client)
-
-                        fig_count = len(paper.figures)
-                        status.update(
-                            label=f"Paper indexed. {fig_count} figures extracted.", state="complete")
-
-                    st.session_state.papers[paper_id] = {
-                        "title": paper.title,
-                        "filename": uploaded.name,
-                        "word_count": paper.word_count,
-                        "chunk_count": len(chunks),
-                        "vectors_upserted": count,
-                        "summary": summary,
-                        "figures": paper.figures,
-                    }
-                    st.session_state.active_paper_id = paper_id
-                    st.session_state.messages = []
-                    save_app_state(st.session_state)
-                    st.rerun()
-
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-                finally:
-                    st.session_state.processing = False
+            process_requested = st.button(
+                "Process and index paper",
+                use_container_width=True,
+                disabled=st.session_state.processing,
+            )
 
     st.markdown("""
     <div style="height:14px"></div>
@@ -111,3 +61,5 @@ def render_landing():
                 <div class="panel-copy" style="margin-top:10px;">{desc}</div>
             </div>
             """, unsafe_allow_html=True)
+
+    return uploaded, process_requested

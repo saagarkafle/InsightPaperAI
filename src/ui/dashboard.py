@@ -1,9 +1,8 @@
-import os
-
 import streamlit as st
 
 
 def render_dashboard():
+    reset_requested = False
     active_id = st.session_state.active_paper_id
     active_paper = st.session_state.papers.get(active_id, {})
     summary = active_paper.get("summary", {})
@@ -71,16 +70,8 @@ def render_dashboard():
             st.markdown(f"""
                 <div class="library-item{active_class}"><div class="library-title">{paper.get('title', 'Research Paper')[:72]}</div><div class="library-meta">{paper.get('chunk_count', 0)} chunks · {len(paper.get('figures', []))} figures</div></div>
             """, unsafe_allow_html=True)
-        if st.button("Research new paper", use_container_width=True):
-            st.session_state.papers = {}
-            st.session_state.active_paper_id = None
-            st.session_state.messages = []
-            try:
-                if os.path.exists(".insightpaper_state.json"):
-                    os.remove(".insightpaper_state.json")
-            except Exception:
-                pass
-            st.rerun()
+        reset_requested = st.button(
+            "Research new paper", use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -97,4 +88,4 @@ def render_dashboard():
         """, unsafe_allow_html=True)
 
     # Return tabs so caller can populate chat/search/figures as needed
-    return tab_chat, tab_figures, tab_search, tab_stats
+    return tab_chat, tab_figures, tab_search, tab_stats, reset_requested
