@@ -112,6 +112,8 @@ def populate_tabs(tab_chat, tab_figures, tab_search, tab_stats):
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         st.markdown(
             "<span class='sec-label'>Search paper chunks by semantic similarity</span>", unsafe_allow_html=True)
+        st.markdown("<div class='search-results-scroll'>",
+                    unsafe_allow_html=True)
         search_col, k_col = st.columns([4, 1])
         with search_col:
             search_query = st.text_input(
@@ -131,6 +133,7 @@ def populate_tabs(tab_chat, tab_figures, tab_search, tab_stats):
                     st.progress(r["score"])
                     st.markdown(f"""
                     <div class="source-chunk" style="max-height:300px; overflow-y:auto;">{r['text']}</div>""", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # Stats tab
     with tab_stats:

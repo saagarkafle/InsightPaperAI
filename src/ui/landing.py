@@ -37,7 +37,7 @@ def render_landing():
             )
 
     st.markdown("""
-    <div style="height:14px"></div>
+    <div style="height:24px"></div>
     <div class="panel">
         <div class="panel-title">What happens next</div>
         <div class="library-item active"><div class="library-label">Step 1</div><div class="library-title">Parse PDF content</div><div class="library-meta">Text and figures are extracted with PyMuPDF.</div></div>

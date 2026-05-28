@@ -42,7 +42,7 @@ body,
 
 [data-testid="stMainBlockContainer"] {
     padding-top: 1.1rem;
-    padding-bottom: 1rem;
+    padding-bottom: 5rem;
     max-width: 1260px;
 }
 
@@ -367,13 +367,24 @@ body,
 }
 
 .footer-bar {
-    margin-top: 20px;
-    padding: 10px 4px 2px 4px;
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    width: min(1260px, calc(100% - 2rem));
+    margin-top: 0;
+    padding: 10px 14px;
     display: flex;
     justify-content: space-between;
-    border-top: 1px solid var(--line);
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(14, 23, 18, 0.88);
+    backdrop-filter: blur(10px);
     color: var(--soft);
     font-size: 12px;
+    z-index: 200;
+    box-shadow: var(--shadow);
 }
 
 .stButton > button {
@@ -409,6 +420,21 @@ body,
 [data-testid="stTabs"] [aria-selected="true"] {
     border-color: rgba(44, 207, 115, 0.44);
     background: rgba(44, 207, 115, 0.14);
+}
+
+.search-results-scroll {
+    max-height: min(60vh, 720px);
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.search-results-scroll .stExpander {
+    margin-bottom: 0.55rem;
+}
+
+.search-results-scroll .source-chunk {
+    max-height: 260px;
+    overflow-y: auto;
 }
 
 #MainMenu,
@@ -464,8 +490,12 @@ footer,
     }
 
     .footer-bar {
+        width: calc(100% - 1rem);
+        left: 50%;
+        bottom: 8px;
         flex-direction: column;
         gap: 4px;
+        text-align: center;
     }
 }
 
