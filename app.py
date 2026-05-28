@@ -1,4 +1,10 @@
-# app.py — Research Paper Q&A Engine (RAG) 
+# app.py — Research Paper Q&A Engine (RAG)
+from src.llm_qa import get_groq_client, answer_question, generate_paper_summary
+from src.rag_pipeline import (
+    get_embedder, get_pinecone_index, chunk_text,
+    upsert_paper, semantic_search, make_paper_id, delete_paper
+)
+from src.pdf_parser import parse_paper, find_relevant_figures
 import os
 import json
 import streamlit as st
@@ -14,19 +20,13 @@ try:
 except Exception:
     pass
 
-from src.pdf_parser import parse_paper, find_relevant_figures
-from src.rag_pipeline import (
-    get_embedder, get_pinecone_index, chunk_text,
-    upsert_paper, semantic_search, make_paper_id, delete_paper
-)
-from src.llm_qa import get_groq_client, answer_question, generate_paper_summary
 
 # ═══════════════════════════════════════════════════════
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="PaperMind — Research Paper Q&A",
-    page_icon="📚",
+    page_title="PaperMind — Spotify-style Research Q&A",
+    page_icon="🟢",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -36,236 +36,481 @@ st.set_page_config(
 # ═══════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg: #121212;
+    --panel: #181818;
+    --panel-2: #202020;
+    --line: #2f2f2f;
+    --text: #f5f5f5;
+    --muted: #b3b3b3;
+    --soft: #9ca3af;
+    --green: #1db954;
+    --green-2: #169c46;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body, .stApp {
-    background: #05080f !important;
-    font-family: 'DM Sans', sans-serif !important;
-    color: #e2e8f0;
+    background:
+        radial-gradient(circle at top left, rgba(29, 185, 84, 0.12), transparent 26%),
+        radial-gradient(circle at 90% 10%, rgba(29, 185, 84, 0.08), transparent 20%),
+        linear-gradient(180deg, #0f0f0f 0%, #111111 100%) !important;
+    font-family: 'Inter', sans-serif !important;
+    color: var(--text);
 }
 
-.navbar {
+.stApp > header { background: transparent !important; }
+
+.topbar {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 14px 32px;
-    background: rgba(10, 14, 26, 0.97);
-    border-bottom: 1px solid #1a2540;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 24px;
+    margin: -1rem -1rem 20px -1rem;
+    background: rgba(18, 18, 18, 0.92);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     position: sticky;
     top: 0;
     z-index: 100;
-    margin: -1rem -1rem 0 -1rem;
 }
-.nav-logo {
+
+.brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+}
+
+.brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #3df168, var(--green));
+    box-shadow: 0 0 0 8px rgba(29, 185, 84, 0.08);
+    display: grid;
+    place-items: center;
+    color: #0f0f0f;
+    font-weight: 900;
     font-size: 18px;
-    font-weight: 700;
-    color: #f1f5f9;
-    letter-spacing: -0.3px;
 }
-.nav-pill {
-    background: #0d1a2e;
-    border: 1px solid #1e3a5f44;
-    border-radius: 20px;
-    padding: 4px 14px;
-    font-size: 11px;
-    color: #60a5fa;
+
+.brand-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.4px;
+}
+
+.brand-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.5px;
 }
-.card {
-    background: #0a0e1a;
-    border: 1px solid #1a2540;
-    border-radius: 16px;
-    padding: 24px;
+
+.hero-card,
+.panel,
+.mini-panel,
+.stat-panel,
+.paper-card,
+.card,
+.card-glow,
+.fig-card,
+.source-chunk {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--shadow);
 }
-.card-glow {
-    background: linear-gradient(135deg, #0a1628 0%, #0a0e1a 100%);
-    border: 1px solid #1e3a5f55;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 0 40px #1e3a5f22;
+
+.hero-card {
+    position: relative;
+    overflow: hidden;
+    padding: 28px;
+    background:
+        radial-gradient(circle at top right, rgba(29, 185, 84, 0.22), transparent 28%),
+        linear-gradient(145deg, #222222 0%, #171717 50%, #131313 100%) !important;
 }
-.sec-label {
-    font-size: 10px;
+
+.hero-title {
+    font-size: clamp(34px, 5vw, 62px);
+    font-weight: 800;
+    line-height: 0.96;
+    letter-spacing: -2px;
+    margin: 12px 0 16px 0;
+    color: var(--text);
+}
+
+.hero-highlight { color: var(--green); }
+
+.hero-copy {
+    max-width: 700px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+}
+
+.hero-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.panel { padding: 22px; background: linear-gradient(180deg, #1f1f1f 0%, #161616 100%) !important; }
+
+.panel-title {
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.8px;
     text-transform: uppercase;
-    color: #334155;
-    display: block;
+    color: var(--muted);
     margin-bottom: 10px;
 }
-.paper-card {
-    background: #0a0e1a;
-    border: 1px solid #1a2540;
-    border-left: 3px solid #3b82f6;
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin: 6px 0;
-}
-.paper-card.active {
-    border-left-color: #8b5cf6;
-    background: #0f1a2e;
-}
-.kw-tag {
-    display: inline-block;
-    background: #0d1a2e;
-    color: #60a5fa;
-    border: 1px solid #1e3a5f;
-    border-radius: 5px;
-    padding: 3px 10px;
-    margin: 2px;
-    font-size: 11px;
-    font-weight: 500;
-    font-family: 'DM Mono', monospace;
-}
-.finding-item {
-    padding: 8px 12px;
-    background: #071a10;
-    border: 1px solid #14532d;
-    border-radius: 8px;
-    margin: 4px 0;
-    font-size: 13px;
-    color: #86efac;
-}
-.source-chunk {
-    background: #080c18;
-    border: 1px solid #1a2540;
-    border-left: 3px solid #7c3aed;
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin: 6px 0;
-    font-size: 12px;
-    color: #64748b;
-    font-family: 'DM Mono', monospace;
-    line-height: 1.6;
-}
-.score-badge {
-    display: inline-block;
-    background: #1a0d30;
-    color: #a78bfa;
-    border: 1px solid #4c1d95;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: 'DM Mono', monospace;
-}
-.diff-beginner { color: #22c55e; background: #052e16; border: 1px solid #166534; border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
-.diff-intermediate { color: #f59e0b; background: #1c1000; border: 1px solid #78350f; border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
-.diff-advanced { color: #ef4444; background: #2d0a0a; border: 1px solid #7f1d1d; border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
 
-.fig-card {
-    background: #0a0e1a;
-    border: 1px solid #1a2540;
-    border-radius: 12px;
-    padding: 14px;
+.panel-kicker {
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
+.panel-copy {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.upload-panel { padding: 22px; }
+.upload-panel .stFileUploader { padding-top: 8px; }
+
+.stat-panel {
+    padding: 18px;
     margin-bottom: 14px;
 }
-.fig-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #3b82f6;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-}
-.fig-caption {
-    font-size: 12px;
-    color: #64748b;
-    line-height: 1.5;
+
+.library-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     margin-bottom: 10px;
 }
-.fig-match-banner {
-    background: #0a1628;
-    border: 1px solid #1e3a5f;
-    border-left: 3px solid #3b82f6;
-    border-radius: 8px;
-    padding: 8px 14px;
+
+.library-item.active {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.18), rgba(255, 255, 255, 0.04));
+    border-color: rgba(29, 185, 84, 0.38);
+}
+
+.library-label {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.library-title {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.library-meta {
+    color: var(--soft);
+    font-size: 12px;
+}
+
+.sec-label,
+.section-label {
     font-size: 11px;
     font-weight: 700;
-    color: #60a5fa;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 12px;
+}
+
+.paper-card {
+    padding: 16px 18px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.035) !important;
+    border-left: 4px solid rgba(29, 185, 84, 0.65) !important;
+}
+
+.paper-card.active {
+    border-left-color: var(--green) !important;
+    background: rgba(29, 185, 84, 0.11) !important;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 16px;
+}
+
+.overview-copy {
+    color: #d7d7d7;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.kw-tag,
+.pill-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    margin: 3px 4px 3px 0;
+    border-radius: 999px;
+    background: rgba(29, 185, 84, 0.12);
+    color: #dff7e6;
+    border: 1px solid rgba(29, 185, 84, 0.22);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.finding-item {
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    margin: 8px 0;
+    font-size: 13px;
+    color: #e2e2e2;
+}
+
+.source-chunk {
+    padding: 14px 16px;
+    margin: 8px 0;
+    font-size: 12px;
+    color: #cfcfcf;
+    line-height: 1.65;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(29, 185, 84, 0.16);
+    color: #dff7e6;
+    border: 1px solid rgba(29, 185, 84, 0.24);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.diff-beginner,
+.diff-intermediate,
+.diff-advanced {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+.diff-beginner { color: #07240f; background: #1db954; border: 1px solid #31d366; }
+.diff-intermediate { color: #f5f5f5; background: #5d5d5d; border: 1px solid #737373; }
+.diff-advanced { color: #fff; background: #3b3b3b; border: 1px solid #5a5a5a; }
+
+.fig-card {
+    padding: 16px;
+    margin-bottom: 14px;
+    background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.fig-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--green);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.fig-caption {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.fig-match-banner {
+    background: rgba(29, 185, 84, 0.12);
+    border: 1px solid rgba(29, 185, 84, 0.2);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #dff7e6;
     letter-spacing: 1px;
     text-transform: uppercase;
-    margin: 10px 0 8px 0;
+    margin: 14px 0 10px 0;
+}
+
+.stat-card {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+}
+
+.stat-label {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.stat-note {
+    margin-top: 10px;
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .stButton > button {
-    background: linear-gradient(135deg, #1d4ed8, #4f46e5) !important;
-    color: white !important;
+    background: linear-gradient(135deg, var(--green), var(--green-2)) !important;
+    color: #0f0f0f !important;
     border: none !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    font-family: 'DM Sans', sans-serif !important;
+    border-radius: 999px !important;
+    font-weight: 800 !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 14px !important;
-    transition: all 0.2s !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease !important;
 }
+
 .stButton > button:hover {
-    opacity: 0.88 !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 20px #2563eb44 !important;
+    box-shadow: 0 14px 30px rgba(29, 185, 84, 0.2) !important;
+    opacity: 0.96 !important;
 }
 
 [data-testid="stChatMessage"] {
-    background: #0a0e1a !important;
-    border: 1px solid #1a2540 !important;
-    border-radius: 14px !important;
-    margin-bottom: 10px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 18px !important;
+    margin-bottom: 12px !important;
 }
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
-    background: #0d1428 !important;
-    border-color: #1e3a5f !important;
+    background: rgba(29, 185, 84, 0.08) !important;
+    border-color: rgba(29, 185, 84, 0.22) !important;
 }
 [data-testid="stChatInput"] {
-    background: #0a0e1a !important;
-    border: 1px solid #1a2540 !important;
-    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 18px !important;
 }
-[data-testid="stChatInput"]:focus-within { border-color: #2563eb !important; }
-[data-testid="stChatInput"] textarea { background: transparent !important; color: #e2e8f0 !important; font-family: 'DM Sans', sans-serif !important; }
+[data-testid="stChatInput"]:focus-within { border-color: rgba(29, 185, 84, 0.7) !important; }
+[data-testid="stChatInput"] textarea {
+    background: transparent !important;
+    color: var(--text) !important;
+    font-family: 'Inter', sans-serif !important;
+}
 
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
-    background: #080c18 !important;
-    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-radius: 999px !important;
     padding: 4px !important;
-    border: 1px solid #1a2540 !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    gap: 4px !important;
 }
 [data-testid="stTabs"] [data-baseweb="tab"] {
     background: transparent !important;
-    color: #475569 !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
+    color: var(--muted) !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
     font-size: 13px !important;
     border: none !important;
 }
 [data-testid="stTabs"] [aria-selected="true"] {
-    background: #1a2540 !important;
-    color: #e2e8f0 !important;
+    background: rgba(29, 185, 84, 0.16) !important;
+    color: var(--text) !important;
 }
+
 [data-testid="stMetric"] {
-    background: #0a0e1a !important;
-    border: 1px solid #1a2540 !important;
-    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 18px !important;
     padding: 16px !important;
 }
-[data-testid="stMetricLabel"] { color: #475569 !important; font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 0.8px !important; }
-[data-testid="stMetricValue"] { color: #e2e8f0 !important; font-size: 20px !important; font-weight: 700 !important; }
-[data-testid="stProgress"] > div > div { background: linear-gradient(90deg, #2563eb, #7c3aed) !important; border-radius: 4px !important; }
+[data-testid="stMetricLabel"] {
+    color: var(--muted) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+}
+[data-testid="stMetricValue"] {
+    color: var(--text) !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+}
+[data-testid="stProgress"] > div > div {
+    background: linear-gradient(90deg, var(--green), #3df168) !important;
+    border-radius: 999px !important;
+}
 
-hr { border-color: #1a2540 !important; margin: 20px 0 !important; }
+hr { border-color: rgba(255, 255, 255, 0.08) !important; margin: 20px 0 !important; }
 #MainMenu, footer, .stDeployButton { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #05080f; }
-::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 2px; }
-[data-testid="stSuccess"] { background: #052e16 !important; border: 1px solid #166534 !important; border-radius: 10px !important; }
-[data-testid="stError"] { background: #2d0a0a !important; border: 1px solid #7f1d1d !important; border-radius: 10px !important; }
-[data-testid="stInfo"] { background: #0c1a2e !important; border: 1px solid #1e3a5f !important; border-radius: 10px !important; }
-[data-testid="stSelectbox"] > div > div { background: #0a0e1a !important; border-color: #1a2540 !important; color: #e2e8f0 !important; border-radius: 10px !important; }
-[data-testid="stFileUploader"] > div { background: #080c18 !important; border: 2px dashed #1a2540 !important; border-radius: 14px !important; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #121212; }
+::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 999px; }
+[data-testid="stSuccess"] { background: rgba(29, 185, 84, 0.12) !important; border: 1px solid rgba(29, 185, 84, 0.24) !important; border-radius: 14px !important; }
+[data-testid="stError"] { background: rgba(239, 68, 68, 0.12) !important; border: 1px solid rgba(239, 68, 68, 0.24) !important; border-radius: 14px !important; }
+[data-testid="stInfo"] { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 14px !important; }
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stTextInput"] > div > div {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: var(--text) !important;
+    border-radius: 14px !important;
+}
+[data-testid="stFileUploader"] > div {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1.5px dashed rgba(29, 185, 84, 0.35) !important;
+    border-radius: 18px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -302,15 +547,21 @@ def init_clients():
 # NAVBAR
 # ═══════════════════════════════════════════════════════
 st.markdown("""
-<div class="navbar">
-    <div class="nav-logo">
-        <span style="font-size:22px;">📚</span>
-        <span>Paper<span style="color:#3b82f6;">Mind</span></span>
+<div class="topbar">
+    <div class="brand">
+        <div class="brand-mark">P</div>
+        <div>
+            <div class="brand-title">PaperMind</div>
+            <div class="brand-subtitle">Spotify-style research paper Q&A</div>
+        </div>
     </div>
-    <div style="display:flex; gap:8px; align-items:center;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+        <span class="chip">🟢 RAG pipeline</span>
+        <span class="chip">📎 Source citations</span>
+        <span class="chip">🧠 Groq + Pinecone</span>
     </div>
 </div>
-<div style="height:24px"></div>
+<div style="height:6px"></div>
 """, unsafe_allow_html=True)
 
 
@@ -318,39 +569,47 @@ st.markdown("""
 # LANDING PAGE
 # ═══════════════════════════════════════════════════════
 if not st.session_state.papers:
+    hero_left, hero_right = st.columns([1.35, 0.9], gap="large")
 
-    st.markdown("""
-    <div style="text-align:center; padding:28px 0 36px 0;">
-        <div style="font-size:12px; color:#3b82f6; font-weight:700; letter-spacing:2.5px;
-                    text-transform:uppercase; margin-bottom:14px;">
-            Retrieval Augmented Generation
+    with hero_left:
+        st.markdown("""
+        <div class="hero-card">
+            <div class="panel-kicker">Research paper copilot</div>
+            <div class="hero-title">Ask questions about any paper<br/><span class="hero-highlight">with a Spotify-style interface</span></div>
+            <div class="hero-copy">
+                Upload a PDF, let the app extract text and figures, then ask grounded questions with source citations, semantic search, and a dark, polished interface inspired by Spotify.
+            </div>
+            <div class="hero-actions">
+                <span class="chip">Upload PDF</span>
+                <span class="chip">Semantic search</span>
+                <span class="chip">Figure matching</span>
+                <span class="chip">RAG stats</span>
+            </div>
+            <div class="hero-badge-row">
+                <span class="pill-tag">Pinecone</span>
+                <span class="pill-tag">Groq</span>
+                <span class="pill-tag">PyMuPDF</span>
+                <span class="pill-tag">LLaMA 3.1</span>
+            </div>
         </div>
-        <h1 style="font-size:44px; font-weight:700; color:#f1f5f9; margin:0 0 14px 0;
-                   line-height:1.15; letter-spacing:-0.8px;">
-            Ask Anything About<br/>
-            <span style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);
-                         -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-                Any Research Paper
-            </span>
-        </h1>
-        <p style="color:#475569; font-size:16px; max-width:500px; margin:0 auto; line-height:1.6;">
-            Upload a PDF → chunks get embedded into Pinecone →
-            your questions retrieve the most relevant sections →
-            LLaMA 3.1 generates precise answers with figures from the paper.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    pad_l, main_col, pad_r = st.columns([1, 2, 1])
-    with main_col:
-        st.markdown("<span class='sec-label'>📄 Upload Research Paper</span>",
-                    unsafe_allow_html=True)
-        uploaded = st.file_uploader("Upload PDF", type=["pdf"],
-                                    label_visibility="collapsed")
+    with hero_right:
+        st.markdown("""
+        <div class="panel upload-panel">
+            <div class="panel-title">Start a session</div>
+        """, unsafe_allow_html=True)
+        uploaded = st.file_uploader(
+            "Upload PDF", type=["pdf"], label_visibility="collapsed")
+        st.markdown("""
+            <div class="panel-copy" style="margin-top:10px;">
+                The paper gets chunked, embedded, summarized, and indexed in one pass.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         if uploaded:
-            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-            if st.button("🚀 Process & Index Paper", use_container_width=True):
+            if st.button("Process and index paper", use_container_width=True):
                 try:
                     embedder, index, groq_client = init_clients()
                     st.session_state.embedder = embedder
@@ -358,13 +617,15 @@ if not st.session_state.papers:
                     st.session_state.groq_client = groq_client
 
                     with st.status("Processing paper...", expanded=True) as status:
-                        st.write("📄 Extracting text and figures from PDF...")
+                        st.write("Extracting text and figures from PDF...")
                         paper = parse_paper(uploaded, uploaded.name)
 
-                        st.write(f"✂️ Chunking {paper.word_count:,} words...")
-                        chunks = chunk_text(paper.full_text, chunk_size=500, overlap=100)
+                        st.write(f"Chunking {paper.word_count:,} words...")
+                        chunks = chunk_text(
+                            paper.full_text, chunk_size=500, overlap=100)
 
-                        st.write(f"🧠 Generating embeddings for {len(chunks)} chunks...")
+                        st.write(
+                            f"Generating embeddings for {len(chunks)} chunks...")
                         paper_id = make_paper_id(uploaded.name)
                         count = upsert_paper(
                             paper_id=paper_id,
@@ -374,12 +635,13 @@ if not st.session_state.papers:
                             index=index
                         )
 
-                        st.write("📊 Generating paper summary...")
-                        summary = generate_paper_summary(paper.full_text, groq_client)
+                        st.write("Generating paper summary...")
+                        summary = generate_paper_summary(
+                            paper.full_text, groq_client)
 
                         fig_count = len(paper.figures)
                         status.update(
-                            label=f"✅ Paper indexed! {fig_count} figures extracted.",
+                            label=f"Paper indexed. {fig_count} figures extracted.",
                             state="complete"
                         )
 
@@ -399,22 +661,43 @@ if not st.session_state.papers:
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
-    st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="height:14px"></div>
+        <div class="panel">
+            <div class="panel-title">What happens next</div>
+            <div class="library-item active">
+                <div class="library-label">Step 1</div>
+                <div class="library-title">Parse PDF content</div>
+                <div class="library-meta">Text and figures are extracted with PyMuPDF.</div>
+            </div>
+            <div class="library-item">
+                <div class="library-label">Step 2</div>
+                <div class="library-title">Build retrieval context</div>
+                <div class="library-meta">Chunks are embedded and stored in Pinecone.</div>
+            </div>
+            <div class="library-item">
+                <div class="library-label">Step 3</div>
+                <div class="library-title">Ask follow-up questions</div>
+                <div class="library-meta">Answers stay grounded in the exact paper sections.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    steps = st.columns(4)
-    flow = [
-        ("📄", "1. Parse", "PDF text + figures extracted with PyMuPDF"),
-        ("✂️", "2. Chunk", "Text split into 500-word overlapping chunks"),
-        ("🧠", "3. Embed", "Each chunk embedded into 384-dim vector"),
-        ("🔍", "4. Retrieve", "Query finds top-K chunks + matching figures"),
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+
+    flow = st.columns(4, gap="medium")
+    steps = [
+        ("Parse", "PDF text and figures extracted with PyMuPDF"),
+        ("Chunk", "Text split into overlapping 500-word segments"),
+        ("Embed", "Each chunk embedded into a 384-dim vector"),
+        ("Retrieve", "Query finds top chunks plus matching figures"),
     ]
-    for col, (icon, title, desc) in zip(steps, flow):
+    for col, (title, desc) in zip(flow, steps):
         with col:
             st.markdown(f"""
-            <div class="card" style="text-align:center; padding:20px;">
-                <div style="font-size:28px; margin-bottom:8px;">{icon}</div>
-                <div style="font-weight:600; color:#e2e8f0; font-size:14px; margin-bottom:6px;">{title}</div>
-                <div style="color:#334155; font-size:12px; line-height:1.5;">{desc}</div>
+            <div class="stat-panel">
+                <div class="panel-kicker">{title}</div>
+                <div class="panel-copy" style="margin-top:10px;">{desc}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -438,35 +721,45 @@ else:
     summary = active_paper.get("summary", {})
     paper_figures = active_paper.get("figures", [])
 
-    # ── Top bar ──
-    top_l, top_r = st.columns([3, 1])
-    with top_l:
-        fig_count = len(paper_figures)
-        st.markdown(f"""
-        <div style="padding:4px 0 12px 0;">
-            <div style="font-size:20px; font-weight:700; color:#f1f5f9; margin-bottom:2px;">
-                {active_paper.get('title', 'Research Paper')[:80]}
-            </div>
-            <div style="font-size:12px; color:#334155;">
-                {active_paper.get('filename', '')} ·
-                {active_paper.get('word_count', 0):,} words ·
-                {active_paper.get('chunk_count', 0)} chunks ·
-                {active_paper.get('vectors_upserted', 0)} vectors ·
-                <span style="color:#3b82f6;">{fig_count} figures extracted</span>
-            </div>
-        </div>
+    dashboard_left, dashboard_main, dashboard_right = st.columns(
+        [1.05, 2.15, 0.9], gap="large")
+
+    with dashboard_left:
+        st.markdown("""
+        <div class="panel">
+            <div class="panel-title">Your library</div>
         """, unsafe_allow_html=True)
-    with top_r:
-        if st.button("➕ Add Another Paper", use_container_width=True):
+        for paper_id, paper in st.session_state.papers.items():
+            active_class = " active" if paper_id == active_id else ""
+            st.markdown(f"""
+            <div class="library-item{active_class}">
+                <div class="library-label">Loaded paper</div>
+                <div class="library-title">{paper.get('title', 'Research Paper')[:72]}</div>
+                <div class="library-meta">{paper.get('chunk_count', 0)} chunks · {len(paper.get('figures', []))} figures</div>
+            </div>
+            """, unsafe_allow_html=True)
+        if st.button("Add another paper", use_container_width=True):
             st.session_state.papers = {}
             st.session_state.active_paper_id = None
             st.session_state.messages = []
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # ── Summary row ──
-    if summary:
-        s_col, k_col = st.columns([3, 2])
-        with s_col:
+    with dashboard_main:
+        fig_count = len(paper_figures)
+        st.markdown(f"""
+        <div class="hero-card" style="margin-bottom:18px;">
+            <div class="panel-kicker">Now reading</div>
+            <div style="font-size:26px; font-weight:800; color:var(--text); margin-top:8px; line-height:1.2; letter-spacing:-0.9px;">
+                {active_paper.get('title', 'Research Paper')[:90]}
+            </div>
+            <div class="hero-copy" style="margin-top:12px; max-width:none;">
+                {active_paper.get('filename', '')} · {active_paper.get('word_count', 0):,} words · {active_paper.get('chunk_count', 0)} chunks · {active_paper.get('vectors_upserted', 0)} vectors · {fig_count} figures extracted
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if summary:
             one_liner = summary.get("one_liner", "")
             problem = summary.get("problem", "")
             approach = summary.get("approach", "")
@@ -474,55 +767,76 @@ else:
             field = summary.get("field", "")
             diff_class = f"diff-{diff.lower()}"
 
-            st.markdown(f"""
-            <div class="card-glow" style="margin-bottom:16px;">
-                <span class="sec-label">Paper Overview</span>
-                <div style="font-size:15px; color:#cbd5e1; font-weight:500;
-                            margin-bottom:12px; line-height:1.5;">
-                    {one_liner}
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-                    <span class="{diff_class}">{diff}</span>
-                    <span style="color:#60a5fa; font-size:12px; padding:2px 10px;
-                                 background:#0d1a2e; border-radius:6px; border:1px solid #1e3a5f;">
-                        {field}
-                    </span>
-                </div>
-                {"<div style='font-size:13px; color:#64748b; margin-bottom:6px;'><strong style='color:#94a3b8;'>Problem:</strong> " + problem + "</div>" if problem else ""}
-                {"<div style='font-size:13px; color:#64748b;'><strong style='color:#94a3b8;'>Approach:</strong> " + approach + "</div>" if approach else ""}
-            </div>
-            """, unsafe_allow_html=True)
-
-        with k_col:
             findings = summary.get("key_findings", [])
             keywords = summary.get("keywords", [])
+
+            st.markdown(f"""
+            <div class="overview-grid">
+                <div class="card-glow" style="padding:22px;">
+                    <div class="panel-title">Paper overview</div>
+                    <div class="overview-copy" style="margin-bottom:14px;">{one_liner}</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+                        <span class="{diff_class}">{diff}</span>
+                        <span class="pill-tag">{field}</span>
+                    </div>
+                    {"<div class='panel-copy' style='margin-bottom:8px;'><strong style='color:#f5f5f5;'>Problem:</strong> " + problem + "</div>" if problem else ""}
+                    {"<div class='panel-copy'><strong style='color:#f5f5f5;'>Approach:</strong> " + approach + "</div>" if approach else ""}
+                </div>
+                <div class="panel">
+                    <div class="panel-title">Key findings</div>
+            """, unsafe_allow_html=True)
+
             if findings:
-                st.markdown("<span class='sec-label'>Key Findings</span>",
-                            unsafe_allow_html=True)
                 for f in findings[:3]:
-                    st.markdown(f"<div class='finding-item'>→ {f}</div>",
-                                unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='finding-item'>• {f}</div>", unsafe_allow_html=True)
             if keywords:
-                st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-                kw_html = "".join([f"<span class='kw-tag'>{k}</span>" for k in keywords])
-                st.markdown(kw_html, unsafe_allow_html=True)
+                st.markdown("<div style='height:8px'></div>",
+                            unsafe_allow_html=True)
+                st.markdown("".join(
+                    [f"<span class='kw-tag'>{k}</span>" for k in keywords]), unsafe_allow_html=True)
 
-    st.markdown("<hr/>", unsafe_allow_html=True)
+            st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # ── Tabs ──
-    tab_chat, tab_figures, tab_search, tab_stats = st.tabs([
-        "💬  Ask Questions",
-        f"🖼  Figures ({len(paper_figures)})",
-        "🔍  Semantic Search",
-        "📊  RAG Stats"
-    ])
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        tab_chat, tab_figures, tab_search, tab_stats = st.tabs([
+            "Ask Questions",
+            f"Figures ({len(paper_figures)})",
+            "Semantic Search",
+            "RAG Stats"
+        ])
+
+    with dashboard_right:
+        st.markdown(
+            f"""
+            <div class="panel">
+                <div class="panel-title">Session stats</div>
+                <div class="stat-card">
+                    <div class="stat-value">{len(st.session_state.messages)}</div>
+                    <div class="stat-label">Messages</div>
+                </div>
+                <div style="height:10px"></div>
+                <div class="stat-card">
+                    <div class="stat-value">{len(paper_figures)}</div>
+                    <div class="stat-label">Figures</div>
+                </div>
+                <div style="height:10px"></div>
+                <div class="stat-card">
+                    <div class="stat-value">{active_paper.get('chunk_count', 0)}</div>
+                    <div class="stat-label">Chunks</div>
+                </div>
+                <div class="stat-note">Use the center tabs to chat, inspect figures, and search semantically across the paper.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # ─────────────────────────────────
     # TAB 1: CHAT
     # ─────────────────────────────────
     with tab_chat:
         if not st.session_state.messages:
-            st.markdown("<span class='sec-label'>💡 Try these questions</span>",
+            st.markdown("<span class='section-label'>Try these questions</span>",
                         unsafe_allow_html=True)
             suggestions = [
                 "What problem does this paper solve?",
@@ -536,11 +850,12 @@ else:
             for i, q in enumerate(suggestions):
                 with cols[i % 2]:
                     st.markdown(f"""
-                    <div style="background:#080c18; border:1px solid #1a2540; border-radius:8px;
-                                padding:9px 14px; margin:3px 0; font-size:12px; color:#475569;">
-                        💬 {q}
+                    <div class="library-item" style="margin-bottom:8px;">
+                        <div class="library-title">{q}</div>
+                        <div class="library-meta">Click the chat box below and ask this directly.</div>
                     </div>""", unsafe_allow_html=True)
-            st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:16px'></div>",
+                        unsafe_allow_html=True)
 
         # Chat history
         for msg in st.session_state.messages:
@@ -579,14 +894,16 @@ else:
                         m = msg["meta"]
                         c1, c2, c3 = st.columns(3)
                         c1.metric("Latency", f"{m['latency_ms']:.0f}ms")
-                        c2.metric("Tokens", f"{m['tokens_in']}→{m['tokens_out']}")
+                        c2.metric(
+                            "Tokens", f"{m['tokens_in']}→{m['tokens_out']}")
                         c3.metric("Sources", len(msg.get("sources", [])))
 
         # Chat input
         if prompt := st.chat_input("Ask anything about this paper..."):
             with st.chat_message("user", avatar="🧑‍💻"):
                 st.markdown(prompt)
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            st.session_state.messages.append(
+                {"role": "user", "content": prompt})
 
             with st.chat_message("assistant", avatar="📚"):
                 with st.spinner("Retrieving relevant sections..."):
@@ -607,7 +924,8 @@ else:
                 st.markdown(response.answer)
 
                 # ── Auto figure matching ──
-                matched_figs = find_relevant_figures(prompt, paper_figures, top_k=2)
+                matched_figs = find_relevant_figures(
+                    prompt, paper_figures, top_k=2)
                 if matched_figs:
                     st.markdown(
                         "<div class='fig-match-banner'>📌 Related Figures from Paper</div>",
@@ -637,7 +955,8 @@ else:
 
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Latency", f"{response.latency_ms:.0f}ms")
-                c2.metric("Tokens", f"{response.tokens_in}→{response.tokens_out}")
+                c2.metric(
+                    "Tokens", f"{response.tokens_in}→{response.tokens_out}")
                 c3.metric("Sources", len(chunks))
 
             st.session_state.messages.append({
@@ -663,17 +982,17 @@ else:
     with tab_figures:
         if not paper_figures:
             st.markdown("""
-            <div style="text-align:center; padding:48px; color:#334155;">
+            <div style="text-align:center; padding:48px; color:var(--muted);">
                 <div style="font-size:32px; margin-bottom:8px;">🖼</div>
-                <div style="font-size:14px;">No figures found in this paper.</div>
-                <div style="font-size:12px; margin-top:6px; color:#1e2d4a;">
-                    Some PDFs store images in formats that can't be extracted.
+                <div style="font-size:14px; color:var(--text);">No figures found in this paper.</div>
+                <div style="font-size:12px; margin-top:6px; color:var(--soft);">
+                    Some PDFs store images in formats that cannot be extracted.
                 </div>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div style='padding:8px 0 12px 0; font-size:13px; color:#475569;'>"
+                f"<div style='padding:8px 0 12px 0; font-size:13px; color:var(--muted);'>"
                 f"{len(paper_figures)} figures extracted · Search or browse all</div>",
                 unsafe_allow_html=True
             )
@@ -731,7 +1050,7 @@ else:
                     filter_paper_id=active_id
                 )
 
-            st.markdown(f"<div style='font-size:12px; color:#334155; margin:10px 0;'>"
+            st.markdown(f"<div style='font-size:12px; color:var(--muted); margin:10px 0;'>"
                         f"Found {len(results)} chunks</div>", unsafe_allow_html=True)
 
             for r in results:
@@ -751,15 +1070,18 @@ else:
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Papers Indexed", len(st.session_state.papers))
-        c2.metric("Total Chunks", sum(p.get("chunk_count", 0) for p in st.session_state.papers.values()))
-        c3.metric("Vectors in Pinecone", sum(p.get("vectors_upserted", 0) for p in st.session_state.papers.values()))
-        c4.metric("Figures Extracted", sum(len(p.get("figures", [])) for p in st.session_state.papers.values()))
+        c2.metric("Total Chunks", sum(p.get("chunk_count", 0)
+                  for p in st.session_state.papers.values()))
+        c3.metric("Vectors in Pinecone", sum(p.get("vectors_upserted", 0)
+                  for p in st.session_state.papers.values()))
+        c4.metric("Figures Extracted", sum(len(p.get("figures", []))
+                  for p in st.session_state.papers.values()))
 
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-        st.markdown("<span class='sec-label'>Architecture</span>", unsafe_allow_html=True)
+        st.markdown("<span class='section-label'>Architecture</span>",
+                    unsafe_allow_html=True)
         st.markdown("""
-        <div class="card" style="font-family:'DM Mono',monospace; font-size:12px;
-                                  color:#475569; line-height:2;">
+        <div class="panel" style="font-size:12px; color:var(--muted); line-height:2;">
             PDF Upload → PyMuPDF text + figure extraction<br/>
             → Chunk (500 words, 100 overlap)<br/>
             → sentence-transformers all-MiniLM-L6-v2 (384 dimensions)<br/>
