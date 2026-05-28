@@ -4,7 +4,8 @@ from src.rag_pipeline import (
     get_embedder, get_pinecone_index, chunk_text,
     upsert_paper, semantic_search, make_paper_id, delete_paper
 )
-from src.pdf_parser import parse_paper, find_relevant_figures
+from dataclasses import asdict
+from src.pdf_parser import parse_paper, find_relevant_figures, Figure
 import os
 import json
 import streamlit as st
@@ -181,6 +182,7 @@ html, body, .stApp {
 }
 
 .panel { padding: 22px; background: linear-gradient(180deg, #1f1f1f 0%, #161616 100%) !important; }
+.panel.compact { padding: 16px; }
 
 .panel-title {
     font-size: 12px;
@@ -207,6 +209,7 @@ html, body, .stApp {
 
 .upload-panel { padding: 22px; }
 .upload-panel .stFileUploader { padding-top: 8px; }
+.upload-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 4px; }
 
 .stat-panel {
     padding: 18px;
@@ -419,6 +422,18 @@ html, body, .stApp {
     line-height: 1.5;
 }
 
+.footer-bar {
+    margin-top: 24px;
+    padding: 18px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    color: var(--muted);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .stButton > button {
     background: linear-gradient(135deg, var(--green), var(--green-2)) !important;
     color: #0f0f0f !important;
@@ -539,11 +554,70 @@ DEFAULTS = {
     "embedder": None,
     "index": None,
     "groq_client": None,
+    "processing": False,
     "initialized": False,
 }
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+APP_STATE_FILE = os.path.join(os.path.dirname(
+    __file__), ".insightpaper_state.json")
+
+
+def _serialize_papers(papers: dict) -> dict:
+    serialized = {}
+    for paper_id, paper in papers.items():
+        paper_copy = dict(paper)
+        paper_copy["figures"] = [
+            asdict(fig) if hasattr(fig, "fig_label") else fig
+            for fig in paper_copy.get("figures", [])
+        ]
+        serialized[paper_id] = paper_copy
+    return serialized
+
+
+def _deserialize_papers(papers: dict) -> dict:
+    restored = {}
+    for paper_id, paper in papers.items():
+        paper_copy = dict(paper)
+        paper_copy["figures"] = [
+            Figure(**fig) if isinstance(fig, dict) else fig
+            for fig in paper_copy.get("figures", [])
+        ]
+        restored[paper_id] = paper_copy
+    return restored
+
+
+def save_app_state() -> None:
+    payload = {
+        "papers": _serialize_papers(st.session_state.papers),
+        "active_paper_id": st.session_state.active_paper_id,
+    }
+    try:
+        with open(APP_STATE_FILE, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+    except Exception:
+        pass
+
+
+def load_app_state() -> None:
+    if not os.path.exists(APP_STATE_FILE):
+        return
+    try:
+        with open(APP_STATE_FILE, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        st.session_state.papers = _deserialize_papers(
+            payload.get("papers", {}))
+        st.session_state.active_paper_id = payload.get("active_paper_id")
+        if st.session_state.active_paper_id not in st.session_state.papers:
+            st.session_state.active_paper_id = next(
+                iter(st.session_state.papers), None)
+    except Exception:
+        pass
+
+
+load_app_state()
 
 
 # ═══════════════════════════════════════════════════════
@@ -557,13 +631,83 @@ def init_clients():
     return embedder, index, groq
 
 
+def render_question_turn(prompt: str, active_paper_id: str, paper_figures: list) -> None:
+    with st.chat_message("user", avatar="🧑‍💻"):
+        st.markdown(prompt)
+
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    with st.chat_message("assistant", avatar="📚"):
+        with st.spinner("Retrieving relevant sections..."):
+            chunks = semantic_search(
+                query=prompt,
+                embedder=st.session_state.embedder,
+                index=st.session_state.index,
+                top_k=5,
+                filter_paper_id=active_paper_id,
+            )
+        with st.spinner("Generating answer..."):
+            response = answer_question(
+                question=prompt,
+                retrieved_chunks=chunks,
+                client=st.session_state.groq_client,
+            )
+
+        st.markdown(response.answer)
+
+        matched_figs = find_relevant_figures(prompt, paper_figures, top_k=2)
+        if matched_figs:
+            st.markdown(
+                "<div class='fig-match-banner'>📌 Related Figures from Paper</div>",
+                unsafe_allow_html=True,
+            )
+            fig_cols = st.columns(len(matched_figs))
+            for col, fig in zip(fig_cols, matched_figs):
+                with col:
+                    caption = f"{fig.fig_label}"
+                    if fig.caption:
+                        caption += f" — {fig.caption}"
+                    st.image(
+                        f"data:image/png;base64,{fig.image_base64}",
+                        caption=caption,
+                        width="stretch",
+                    )
+
+        with st.expander(f"📎 {len(chunks)} source chunks retrieved"):
+            for src in chunks:
+                st.markdown(f"""
+                <div class="source-chunk">
+                    <span class="score-badge">score: {src['score']}</span>
+                    &nbsp; chunk #{src['chunk_index']}<br/><br/>
+                    {src['text'][:300]}...
+                </div>""", unsafe_allow_html=True)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Latency", f"{response.latency_ms:.0f}ms")
+        c2.metric("Tokens", f"{response.tokens_in}→{response.tokens_out}")
+        c3.metric("Sources", len(chunks))
+
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response.answer,
+        "sources": chunks,
+        "matched_figures": matched_figs,
+        "meta": {
+            "latency_ms": response.latency_ms,
+            "tokens_in": response.tokens_in,
+            "tokens_out": response.tokens_out,
+        },
+    })
+    save_app_state()
+
+
 # ═══════════════════════════════════════════════════════
 # NAVBAR
 # ═══════════════════════════════════════════════════════
 st.markdown("""
 <div class="topbar">
     <div class="brand">
-        <div class="brand-mark">P</div>
+        <div class="brand-mark">I</div>
         <div>
             <div class="brand-title">InsightPaper AI</div>
             <div class="brand-subtitle">Research paper Q&A</div>
@@ -610,8 +754,9 @@ if not st.session_state.papers:
 
     with hero_right:
         st.markdown("""
-        <div class="panel upload-panel">
+        <div class="panel upload-panel compact">
             <div class="panel-title">Start a session</div>
+            <div class="upload-note">200MB per file • PDF only</div>
         """, unsafe_allow_html=True)
         uploaded = st.file_uploader(
             "Upload PDF", type=["pdf"], label_visibility="collapsed")
@@ -623,8 +768,9 @@ if not st.session_state.papers:
         """, unsafe_allow_html=True)
 
         if uploaded:
-            if st.button("Process and index paper", use_container_width=True):
+            if st.button("Process and index paper", use_container_width=True, disabled=st.session_state.processing):
                 try:
+                    st.session_state.processing = True
                     embedder, index, groq_client = init_clients()
                     st.session_state.embedder = embedder
                     st.session_state.index = index
@@ -670,10 +816,13 @@ if not st.session_state.papers:
                     }
                     st.session_state.active_paper_id = paper_id
                     st.session_state.messages = []
+                    save_app_state()
                     st.rerun()
 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+                finally:
+                    st.session_state.processing = False
 
         st.markdown("""
         <div style="height:14px"></div>
@@ -735,7 +884,7 @@ else:
     summary = active_paper.get("summary", {})
     paper_figures = active_paper.get("figures", [])
 
-    dashboard_main, dashboard_right = st.columns([2.55, 1.0], gap="large")
+    dashboard_main, dashboard_right = st.columns([2.8, 0.72], gap="large")
 
     with dashboard_main:
         fig_count = len(paper_figures)
@@ -812,7 +961,7 @@ else:
     with dashboard_right:
         st.markdown(
             f"""
-            <div class="panel">
+            <div class="panel compact">
                 <div class="panel-title">Your library</div>
                 <div class="panel-copy" style="margin-bottom:12px;">Loaded paper</div>
             """,
@@ -826,10 +975,15 @@ else:
                     <div class="library-meta">{paper.get('chunk_count', 0)} chunks · {len(paper.get('figures', []))} figures</div>
                 </div>
             """, unsafe_allow_html=True)
-        if st.button("Add another paper", use_container_width=True):
+        if st.button("Research new paper", use_container_width=True):
             st.session_state.papers = {}
             st.session_state.active_paper_id = None
             st.session_state.messages = []
+            try:
+                if os.path.exists(APP_STATE_FILE):
+                    os.remove(APP_STATE_FILE)
+            except Exception:
+                pass
             st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -837,7 +991,7 @@ else:
         st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
         st.markdown(
             f"""
-            <div class="panel">
+            <div class="panel compact">
                 <div class="panel-title">Session stats</div>
                 <div class="stat-card">
                     <div class="stat-value">{len(st.session_state.messages)}</div>
@@ -877,11 +1031,8 @@ else:
             cols = st.columns(2)
             for i, q in enumerate(suggestions):
                 with cols[i % 2]:
-                    st.markdown(f"""
-                    <div class="library-item" style="margin-bottom:8px;">
-                        <div class="library-title">{q}</div>
-                        <div class="library-meta">Click the chat box below and ask this directly.</div>
-                    </div>""", unsafe_allow_html=True)
+                    if st.button(q, key=f"quick_q_{i}", use_container_width=True):
+                        st.session_state.quick_question = q
             st.markdown("<div style='height:16px'></div>",
                         unsafe_allow_html=True)
 
@@ -907,7 +1058,7 @@ else:
                                 st.image(
                                     f"data:image/png;base64,{fig.image_base64}",
                                     caption=caption,
-                                    use_column_width=True
+                                    width="stretch"
                                 )
                     if "sources" in msg:
                         with st.expander(f"📎 {len(msg['sources'])} source chunks retrieved"):
@@ -926,78 +1077,14 @@ else:
                             "Tokens", f"{m['tokens_in']}→{m['tokens_out']}")
                         c3.metric("Sources", len(msg.get("sources", [])))
 
+        quick_question = st.session_state.pop("quick_question", None)
+        if quick_question:
+            render_question_turn(quick_question, active_id, paper_figures)
+            st.rerun()
+
         # Chat input
         if prompt := st.chat_input("Ask anything about this paper..."):
-            with st.chat_message("user", avatar="🧑‍💻"):
-                st.markdown(prompt)
-            st.session_state.messages.append(
-                {"role": "user", "content": prompt})
-
-            with st.chat_message("assistant", avatar="📚"):
-                with st.spinner("Retrieving relevant sections..."):
-                    chunks = semantic_search(
-                        query=prompt,
-                        embedder=st.session_state.embedder,
-                        index=st.session_state.index,
-                        top_k=5,
-                        filter_paper_id=active_id
-                    )
-                with st.spinner("Generating answer..."):
-                    response = answer_question(
-                        question=prompt,
-                        retrieved_chunks=chunks,
-                        client=st.session_state.groq_client
-                    )
-
-                st.markdown(response.answer)
-
-                # ── Auto figure matching ──
-                matched_figs = find_relevant_figures(
-                    prompt, paper_figures, top_k=2)
-                if matched_figs:
-                    st.markdown(
-                        "<div class='fig-match-banner'>📌 Related Figures from Paper</div>",
-                        unsafe_allow_html=True
-                    )
-                    fig_cols = st.columns(len(matched_figs))
-                    for col, fig in zip(fig_cols, matched_figs):
-                        with col:
-                            caption = f"{fig.fig_label}"
-                            if fig.caption:
-                                caption += f" — {fig.caption}"
-                            st.image(
-                                f"data:image/png;base64,{fig.image_base64}",
-                                caption=caption,
-                                use_column_width=True
-                            )
-                # ─────────────────────────
-
-                with st.expander(f"📎 {len(chunks)} source chunks retrieved"):
-                    for src in chunks:
-                        st.markdown(f"""
-                        <div class="source-chunk">
-                            <span class="score-badge">score: {src['score']}</span>
-                            &nbsp; chunk #{src['chunk_index']}<br/><br/>
-                            {src['text'][:300]}...
-                        </div>""", unsafe_allow_html=True)
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Latency", f"{response.latency_ms:.0f}ms")
-                c2.metric(
-                    "Tokens", f"{response.tokens_in}→{response.tokens_out}")
-                c3.metric("Sources", len(chunks))
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": response.answer,
-                "sources": chunks,
-                "matched_figures": matched_figs,
-                "meta": {
-                    "latency_ms": response.latency_ms,
-                    "tokens_in": response.tokens_in,
-                    "tokens_out": response.tokens_out,
-                }
-            })
+            render_question_turn(prompt, active_id, paper_figures)
 
         if st.session_state.messages:
             if st.button("🗑 Clear Chat"):
@@ -1044,7 +1131,7 @@ else:
                                 """, unsafe_allow_html=True)
                                 st.image(
                                     f"data:image/png;base64,{fig.image_base64}",
-                                    use_column_width=True
+                                    width="stretch"
                                 )
                                 st.markdown("<div style='height:8px'></div>",
                                             unsafe_allow_html=True)
@@ -1120,3 +1207,10 @@ else:
             → LLaMA 3.1 (Groq) → grounded answer + figures shown
         </div>
         """, unsafe_allow_html=True)
+
+st.markdown("""
+<div class="footer-bar">
+    <div>Built by Sagar Kafle</div>
+    <div>InsightPaper AI</div>
+</div>
+""", unsafe_allow_html=True)
