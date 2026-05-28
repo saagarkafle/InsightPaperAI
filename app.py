@@ -25,7 +25,7 @@ except Exception:
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="PaperMind — Spotify-style Research Q&A",
+    page_title="InsightPaper AI — Research Q&A",
     page_icon="🟢",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -276,12 +276,23 @@ html, body, .stApp {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     gap: 16px;
+    align-items: start;
+}
+
+.overview-grid > div {
+    min-width: 0;
 }
 
 .overview-copy {
     color: #d7d7d7;
     font-size: 15px;
     line-height: 1.7;
+}
+
+.findings-stack {
+    max-height: 220px;
+    overflow: auto;
+    padding-right: 4px;
 }
 
 .kw-tag,
@@ -307,6 +318,8 @@ html, body, .stApp {
     margin: 8px 0;
     font-size: 13px;
     color: #e2e2e2;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .source-chunk {
@@ -449,18 +462,21 @@ html, body, .stApp {
 
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: rgba(255, 255, 255, 0.04) !important;
-    border-radius: 999px !important;
-    padding: 4px !important;
+    border-radius: 14px !important;
+    padding: 2px !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    gap: 4px !important;
+    gap: 2px !important;
 }
 [data-testid="stTabs"] [data-baseweb="tab"] {
     background: transparent !important;
     color: var(--muted) !important;
-    border-radius: 999px !important;
+    border-radius: 12px !important;
     font-weight: 700 !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     border: none !important;
+    padding: 6px 10px !important;
+    min-height: 32px !important;
+    line-height: 1 !important;
 }
 [data-testid="stTabs"] [aria-selected="true"] {
     background: rgba(29, 185, 84, 0.16) !important;
@@ -551,8 +567,8 @@ st.markdown("""
     <div class="brand">
         <div class="brand-mark">P</div>
         <div>
-            <div class="brand-title">PaperMind</div>
-            <div class="brand-subtitle">Spotify-style research paper Q&A</div>
+            <div class="brand-title">InsightPaper AI</div>
+            <div class="brand-subtitle">Research paper Q&A</div>
         </div>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
@@ -575,9 +591,9 @@ if not st.session_state.papers:
         st.markdown("""
         <div class="hero-card">
             <div class="panel-kicker">Research paper copilot</div>
-            <div class="hero-title">Ask questions about any paper<br/><span class="hero-highlight">with a Spotify-style interface</span></div>
+            <div class="hero-title">Ask questions about any paper<br/><span class="hero-highlight">with a polished dark interface</span></div>
             <div class="hero-copy">
-                Upload a PDF, let the app extract text and figures, then ask grounded questions with source citations, semantic search, and a dark, polished interface inspired by Spotify.
+                Upload a PDF, let the app extract text and figures, then ask grounded questions with source citations and semantic search in a polished dark interface.
             </div>
             <div class="hero-actions">
                 <span class="chip">Upload PDF</span>
@@ -784,6 +800,7 @@ else:
                 </div>
                 <div class="panel">
                     <div class="panel-title">Key findings</div>
+                    <div class="findings-stack">
             """, unsafe_allow_html=True)
 
             if findings:
@@ -796,14 +813,14 @@ else:
                 st.markdown("".join(
                     [f"<span class='kw-tag'>{k}</span>" for k in keywords]), unsafe_allow_html=True)
 
-            st.markdown("</div></div>", unsafe_allow_html=True)
+                st.markdown("</div></div>", unsafe_allow_html=True)
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         tab_chat, tab_figures, tab_search, tab_stats = st.tabs([
             "Ask Questions",
             f"Figures ({len(paper_figures)})",
-            "Semantic Search",
-            "RAG Stats"
+            "Search",
+            "Stats"
         ])
 
     with dashboard_right:
