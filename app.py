@@ -737,29 +737,7 @@ else:
     summary = active_paper.get("summary", {})
     paper_figures = active_paper.get("figures", [])
 
-    dashboard_left, dashboard_main, dashboard_right = st.columns(
-        [1.05, 2.15, 0.9], gap="large")
-
-    with dashboard_left:
-        st.markdown("""
-        <div class="panel">
-            <div class="panel-title">Your library</div>
-        """, unsafe_allow_html=True)
-        for paper_id, paper in st.session_state.papers.items():
-            active_class = " active" if paper_id == active_id else ""
-            st.markdown(f"""
-            <div class="library-item{active_class}">
-                <div class="library-label">Loaded paper</div>
-                <div class="library-title">{paper.get('title', 'Research Paper')[:72]}</div>
-                <div class="library-meta">{paper.get('chunk_count', 0)} chunks · {len(paper.get('figures', []))} figures</div>
-            </div>
-            """, unsafe_allow_html=True)
-        if st.button("Add another paper", use_container_width=True):
-            st.session_state.papers = {}
-            st.session_state.active_paper_id = None
-            st.session_state.messages = []
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+    dashboard_main, dashboard_right = st.columns([2.55, 1.0], gap="large")
 
     with dashboard_main:
         fig_count = len(paper_figures)
@@ -786,6 +764,13 @@ else:
             findings = summary.get("key_findings", [])
             keywords = summary.get("keywords", [])
 
+            findings_html = "".join(
+                f"<div class='finding-item'>• {f}</div>" for f in findings[:3]
+            ) if findings else ""
+            keywords_html = "".join(
+                f"<span class='kw-tag'>{k}</span>" for k in keywords
+            ) if keywords else ""
+
             st.markdown(f"""
             <div class="overview-grid">
                 <div class="card-glow" style="padding:22px;">
@@ -800,20 +785,12 @@ else:
                 </div>
                 <div class="panel">
                     <div class="panel-title">Key findings</div>
-                    <div class="findings-stack">
+                    <div class="findings-stack">{findings_html}</div>
+                    <div style="height:8px"></div>
+                    <div>{keywords_html}</div>
+                </div>
+            </div>
             """, unsafe_allow_html=True)
-
-            if findings:
-                for f in findings[:3]:
-                    st.markdown(
-                        f"<div class='finding-item'>• {f}</div>", unsafe_allow_html=True)
-            if keywords:
-                st.markdown("<div style='height:8px'></div>",
-                            unsafe_allow_html=True)
-                st.markdown("".join(
-                    [f"<span class='kw-tag'>{k}</span>" for k in keywords]), unsafe_allow_html=True)
-
-                st.markdown("</div></div>", unsafe_allow_html=True)
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         tab_chat, tab_figures, tab_search, tab_stats = st.tabs([
@@ -824,6 +801,29 @@ else:
         ])
 
     with dashboard_right:
+        st.markdown(
+            f"""
+            <div class="panel">
+                <div class="panel-title">Your library</div>
+                <div class="panel-copy" style="margin-bottom:12px;">Loaded paper</div>
+            """,
+            unsafe_allow_html=True,
+        )
+        for paper_id, paper in st.session_state.papers.items():
+            active_class = " active" if paper_id == active_id else ""
+            st.markdown(f"""
+                <div class="library-item{active_class}">
+                    <div class="library-title">{paper.get('title', 'Research Paper')[:72]}</div>
+                    <div class="library-meta">{paper.get('chunk_count', 0)} chunks · {len(paper.get('figures', []))} figures</div>
+                </div>
+            """, unsafe_allow_html=True)
+        if st.button("Add another paper", use_container_width=True):
+            st.session_state.papers = {}
+            st.session_state.active_paper_id = None
+            st.session_state.messages = []
+            st.rerun()
+
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
         st.markdown(
             f"""
             <div class="panel">
