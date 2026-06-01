@@ -1,0 +1,73 @@
+InsightPaper AI — Stacks, Tools, and AI used
+
+Project root: InsightPaper AI
+
+1) Language & Runtime
+- Python 3.9+
+- Virtual environment: venv (used in README)
+
+2) Web UI / Frontend
+- Streamlit (streamlit>=1.35.0)
+- Custom CSS (src/ui/css.py) + Google Fonts import
+
+3) PDF / Document processing
+- PyMuPDF (fitz) (PyMuPDF>=1.24.0)
+- PDF text extraction, figure/image extraction, caption parsing
+
+4) Embeddings
+- sentence-transformers (sentence-transformers>=2.2.0)
+- Model: all-MiniLM-L6-v2 (384-dim)
+
+5) Vector database / similarity search
+- Pinecone (pinecone>=3.0.0)
+- Uses Pinecone ServerlessSpec (cosine similarity, 384-dim index)
+
+6) Large Language Model / Generation
+- LLaMA 3.1 (8B) invoked via Groq API
+- Groq integration implemented through the `openai` Python SDK configured with base_url=https://api.groq.com/openai/v1
+- openai Python package (openai>=1.30.0)
+
+7) Optional / Alternate AI SDKs (present in requirements)
+- google-generativeai (Gemini SDK) (google-generativeai>=0.5.0) — optional, GEMINI_API_KEY handled in env but not actively used in code
+
+8) Other runtime / helper libraries
+- python-dotenv (python-dotenv>=1.0.0) — .env loading
+- base64, re, hashlib, time, dataclasses, typing (standard library usage across code)
+
+9) Project structure & key modules
+- Entry: app.py (Streamlit runner)
+- RAG pipeline: src/rag_pipeline.py (embedding, chunking, Pinecone index management)
+- LLM/Q&A: src/llm_qa.py (Groq/OpenAI client usage, prompts, summary generation)
+- PDF parsing & figures: src/pdf_parser.py (text extraction, figure detection, extraction)
+- Stream helpers / orchestration: src/stream_helpers.py
+- MVC: src/mvc/{controller.py,model.py,view.py}
+- UI components: src/ui/* (tabs, landing, navbar, dashboard, footer)
+
+10) External APIs / Keys required
+- PINECONE_API_KEY — Pinecone vector DB
+- GROQ_API_KEY — Groq (LLaMA 3.1) via Groq/OpenAI-compatible endpoint
+- GEMINI_API_KEY — Optional (Google Gemini) — present in README and env handling
+
+11) How to run (from README)
+- Create venv, activate
+- pip install -r requirements.txt
+- Set API keys in `.env` or Streamlit secrets
+- Run: `python3 -m streamlit run app.py`
+
+12) Notes / Observations
+- Embeddings run locally using sentence-transformers; no paid embedding API required
+- LLM calls are directed to Groq via the OpenAI-compatible client (openai package)
+- Pinecone is used for storage & retrieval of embeddings (serverless index)
+- The repo includes `google-generativeai` in requirements but codebase primarily uses Groq/OpenAI + Pinecone
+
+Files referenced while producing this list:
+- app.py
+- requirements.txt
+- README.md
+- src/rag_pipeline.py
+- src/llm_qa.py
+- src/pdf_parser.py
+- src/stream_helpers.py
+- src/ui/
+
+Generated on: 2026-05-28
