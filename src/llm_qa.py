@@ -1,8 +1,9 @@
 # src/llm_qa.py — LLM Question Answering with RAG Context
 import os
 import time
-import openai
 from dataclasses import dataclass
+
+import openai
 
 
 @dataclass
@@ -56,7 +57,8 @@ def build_context(retrieved_chunks: list[dict], max_tokens: int = 3000) -> str:
     Deduplicates and orders by relevance score.
     """
     # Sort by score descending
-    sorted_chunks = sorted(retrieved_chunks, key=lambda x: x["score"], reverse=True)
+    sorted_chunks = sorted(
+        retrieved_chunks, key=lambda x: x["score"], reverse=True)
 
     context_parts = []
     total_words = 0
@@ -83,7 +85,8 @@ def answer_question(
     question: str,
     retrieved_chunks: list[dict],
     client: openai.OpenAI,
-    model: str = "llama-3.1-8b-instant"
+    model: str = "llama-3.1-8b-instant",
+    max_tokens: int = 1000,
 ) -> QAResponse:
     """
     Generate an answer using RAG context + LLM.
@@ -107,7 +110,7 @@ Provide a detailed, accurate answer based strictly on the context above."""
             {"role": "user", "content": user_message}
         ],
         temperature=0.2,
-        max_tokens=1000,
+        max_tokens=max_tokens,
     )
     latency_ms = (time.time() - start) * 1000
 
