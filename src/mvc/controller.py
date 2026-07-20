@@ -15,30 +15,61 @@ class AppController:
         self.model.initialize()
         self.view.render_shell()
 
-        if not self.model.has_papers():
-            uploaded_file, process_requested = self.view.render_landing_screen()
-            if uploaded_file and process_requested:
-                self._handle_paper_processing(uploaded_file)
+        if not self.model.has_any_source():
+            result = self.view.render_landing_screen()
+            uploaded_pdf = result.get("uploaded_pdf")
+            uploaded_dataset = result.get("uploaded_dataset")
+            process_requested = result.get("process_requested", False)
+
+            if process_requested and (uploaded_pdf or uploaded_dataset):
+                self._handle_processing(uploaded_pdf, uploaded_dataset)
         else:
             self.model.ensure_clients()
-            tab_chat, tab_figures, tab_search, tab_stats, reset_requested = self.view.render_dashboard_screen()
-            self.view.render_tabs(tab_chat, tab_figures, tab_search, tab_stats)
+            tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate, reset_requested = (
+                self.view.render_dashboard_screen()
+            )
+            self.view.render_tabs(
+                tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate
+            )
             if reset_requested:
                 self.model.reset_current_session()
                 st.rerun()
 
         self.view.render_footer()
 
-    def _handle_paper_processing(self, uploaded_file) -> None:
+    def _handle_processing(self, uploaded_pdf, uploaded_dataset) -> None:
         try:
             st.session_state.processing = True
-            with st.status("Processing paper...", expanded=True) as status:
-                self.model.process_uploaded_paper(
-                    uploaded_file, progress=st.write)
-                fig_count = len(
-                    st.session_state.papers[st.session_state.active_paper_id].get("figures", []))
+            with st.status("Processing uploads...", expanded=True) as status:
+                # Process PDF if provided
+                if uploaded_pdf:
+                    self.model.process_uploaded_paper(
+                        uploaded_pdf, progress=st.write)
+
+                # Process dataset if provided
+                if uploaded_dataset:
+                    success, error_msg = self.model.process_uploaded_dataset(
+                        uploaded_dataset, progress=st.write)
+                    if not success:
+                        st.error(f"Dataset error: {error_msg}")
+                        st.session_state.processing = False
+                        return
+
+                # Build completion label
+                parts = []
+                if uploaded_pdf:
+                    fig_count = len(
+                        st.session_state.papers.get(
+                            st.session_state.active_paper_id, {}
+                        ).get("figures", [])
+                    )
+                    parts.append(f"Paper indexed, {fig_count} figures extracted")
+                if uploaded_dataset:
+                    row_count = len(st.session_state.get("dataset") or [])
+                    parts.append(f"Dataset indexed ({row_count} rows)")
+
                 status.update(
-                    label=f"Paper indexed. {fig_count} figures extracted.",
+                    label=" · ".join(parts) + ".",
                     state="complete",
                 )
             st.rerun()

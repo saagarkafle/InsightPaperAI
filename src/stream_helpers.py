@@ -19,20 +19,39 @@ def init_clients():
     return embedder, index, groq
 
 
-def render_question_turn(prompt: str, active_paper_id: str, paper_figures: list) -> None:
+def _get_source_filter(source_mode: str, has_pdf: bool, has_dataset: bool):
+    """Determine which source_filter value to pass to semantic_search."""
+    if source_mode == "pdf":
+        return "pdf" if has_pdf else None
+    elif source_mode == "dataset":
+        return "dataset" if has_dataset else None
+    else:  # "both"
+        return None
+
+
+def render_question_turn(prompt: str, active_paper_id: str,
+                         paper_figures: list, source_mode: str = "both") -> None:
     with st.chat_message("user", avatar="🧑‍💻"):
         st.markdown(prompt)
 
     st.session_state.messages.append({"role": "user", "content": prompt})
 
+    has_pdf = bool(st.session_state.papers)
+    has_dataset = bool(st.session_state.get("dataset"))
+    source_filter = _get_source_filter(source_mode, has_pdf, has_dataset)
+
     with st.chat_message("assistant", avatar="📚"):
         with st.spinner("Retrieving relevant sections..."):
+            # Determine the paper_id filter — only apply when filtering to PDF
+            paper_id_filter = active_paper_id if source_filter != "dataset" else None
+
             chunks = semantic_search(
                 query=prompt,
                 embedder=st.session_state.embedder,
                 index=st.session_state.index,
                 top_k=5,
-                filter_paper_id=active_paper_id,
+                filter_paper_id=paper_id_filter,
+                source_filter=source_filter,
             )
         with st.spinner("Generating answer..."):
             response = answer_question(
@@ -63,9 +82,12 @@ def render_question_turn(prompt: str, active_paper_id: str, paper_figures: list)
 
         with st.expander(f"📎 {len(chunks)} source chunks retrieved"):
             for src in chunks:
+                source_type = src.get("source_type", "pdf")
+                type_badge = "📄 PDF" if source_type == "pdf" else "📊 Dataset"
                 st.markdown(f"""
                 <div class="source-chunk">
                     <span class="score-badge">score: {src['score']}</span>
+                    <span class="source-type-badge">{type_badge}</span>
                     &nbsp; chunk #{src['chunk_index']}<br/><br/>
                     {src['text'][:300]}...
                 </div>""", unsafe_allow_html=True)

@@ -1,17 +1,19 @@
 # src/rag_pipeline.py — RAG Pipeline with sentence-transformers
+import hashlib
 import os
 import time
-import hashlib
 from typing import Optional
-from sentence_transformers import SentenceTransformer
+
 from pinecone import Pinecone, ServerlessSpec
 
-
 _model = None
+
 
 def get_embedder():
     global _model
     if _model is None:
+        # Lazy-import to avoid heavy imports at app startup (torch/transformers)
+        from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer("all-MiniLM-L6-v2")
     return _model
 
@@ -73,7 +75,12 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> list:
     return chunks
 
 
-def upsert_paper(paper_id, paper_title, chunks, embedder, index, batch_size=100):
+def upsert_paper(paper_id, paper_title, chunks, embedder, index,
+                 batch_size=100, source_type="pdf"):
+    """
+    Upsert text chunks into Pinecone with metadata.
+    source_type: 'pdf' or 'dataset' — stored in metadata for filtering.
+    """
     vectors = embed_texts(chunks, embedder)
     records = []
     for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
@@ -85,6 +92,7 @@ def upsert_paper(paper_id, paper_title, chunks, embedder, index, batch_size=100)
                 "paper_title": paper_title,
                 "chunk_index": i,
                 "text": chunk[:1000],
+                "source_type": source_type,
             }
         })
     total = 0
@@ -94,10 +102,39 @@ def upsert_paper(paper_id, paper_title, chunks, embedder, index, batch_size=100)
     return total
 
 
-def semantic_search(query, embedder, index, top_k=5, filter_paper_id=None):
+def upsert_dataset(dataset_id, dataset_name, chunks, embedder, index,
+                   batch_size=100):
+    """Convenience wrapper to upsert dataset chunks with source_type='dataset'."""
+    return upsert_paper(
+        paper_id=dataset_id,
+        paper_title=dataset_name,
+        chunks=chunks,
+        embedder=embedder,
+        index=index,
+        batch_size=batch_size,
+        source_type="dataset",
+    )
+
+
+def semantic_search(query, embedder, index, top_k=5,
+                    filter_paper_id=None, source_filter=None):
+    """
+    Search Pinecone for semantically similar chunks.
+    source_filter: 'pdf', 'dataset', or None (both).
+    """
     query_vector = embed_query(query, embedder)
-    filter_dict = {"paper_id": {"$eq": filter_paper_id}} if filter_paper_id else None
-    results = index.query(vector=query_vector, top_k=top_k, include_metadata=True, filter=filter_dict)
+
+    # Build filter dict from optional parameters
+    filter_conditions = {}
+    if filter_paper_id:
+        filter_conditions["paper_id"] = {"$eq": filter_paper_id}
+    if source_filter:
+        filter_conditions["source_type"] = {"$eq": source_filter}
+
+    filter_dict = filter_conditions if filter_conditions else None
+
+    results = index.query(vector=query_vector, top_k=top_k,
+                          include_metadata=True, filter=filter_dict)
     matches = []
     for match in results.matches:
         matches.append({
@@ -106,6 +143,7 @@ def semantic_search(query, embedder, index, top_k=5, filter_paper_id=None):
             "paper_title": match.metadata.get("paper_title", "Unknown"),
             "paper_id": match.metadata.get("paper_id", ""),
             "chunk_index": match.metadata.get("chunk_index", 0),
+            "source_type": match.metadata.get("source_type", "pdf"),
         })
     return matches
 

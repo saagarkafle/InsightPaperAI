@@ -5,17 +5,14 @@ def render_navbar():
     st.markdown("""
 <div class="topbar">
     <div class="brand">
-        <div class="brand-mark">I</div>
-        <div>
-            <div class="brand-title">InsightPaper AI</div>
-            <div class="brand-subtitle">Research paper Q&A</div>
-        </div>
-    </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-        <span class="chip">🟢 RAG pipeline</span>
-        <span class="chip">📎 Source citations</span>
-        <span class="chip">🧠 Groq + Pinecone</span>
+        <a href="?home=1" style="text-decoration:none; color:inherit; display:flex; gap:12px; align-items:center;">
+            <div class="brand-mark">I</div>
+            <div>
+                <div class="brand-title">InsightPaper AI</div>
+                <div class="brand-subtitle">AI-Powered Research Paper Analysis</div>
+            </div>
+        </a>
     </div>
 </div>
-<div style="height:6px"></div>
+<div class="topbar-accent-line"></div>
 """, unsafe_allow_html=True)

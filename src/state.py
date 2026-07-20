@@ -14,6 +14,12 @@ DEFAULTS = {
     "groq_client": None,
     "processing": False,
     "initialized": False,
+    # Dataset state
+    "dataset": None,
+    "dataset_filename": None,
+    "dataset_id": None,
+    "source_mode": "both",  # "pdf", "dataset", or "both"
+    "eval_results": None,
 }
 
 
@@ -50,7 +56,15 @@ def save_app_state(st_session_state) -> None:
     payload = {
         "papers": _serialize_papers(st_session_state.papers),
         "active_paper_id": st_session_state.active_paper_id,
+        "dataset_filename": st_session_state.get("dataset_filename"),
+        "dataset_id": st_session_state.get("dataset_id"),
+        "source_mode": st_session_state.get("source_mode", "both"),
     }
+    # Include dataset rows if present (but not huge)
+    dataset = st_session_state.get("dataset")
+    if dataset and len(dataset) <= 500:
+        payload["dataset"] = dataset
+
     try:
         with open(APP_STATE_FILE, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
@@ -70,5 +84,10 @@ def load_app_state(st_session_state) -> None:
         if st_session_state.active_paper_id not in st_session_state.papers:
             st_session_state.active_paper_id = next(
                 iter(st_session_state.papers), None)
+        # Restore dataset state
+        st_session_state.dataset = payload.get("dataset")
+        st_session_state.dataset_filename = payload.get("dataset_filename")
+        st_session_state.dataset_id = payload.get("dataset_id")
+        st_session_state.source_mode = payload.get("source_mode", "both")
     except Exception:
         pass

@@ -31,7 +31,7 @@ def get_groq_client() -> openai.OpenAI:
 # ─────────────────────────────────────────────
 SYSTEM_PROMPT = """You are an expert AI research assistant specializing in analyzing academic papers.
 
-You answer questions based STRICTLY on the provided context from the research paper(s).
+You answer questions based STRICTLY on the provided context from the research paper(s) and/or datasets.
 
 RULES:
 1. Only use information from the provided context — never fabricate or assume facts.
@@ -43,6 +43,9 @@ RULES:
    - End with your analytical insight if relevant
 5. For technical questions, explain concepts clearly without oversimplifying.
 6. If asked to compare or summarize, be comprehensive but concise.
+7. When context comes from multiple source types (PDF and Dataset), clearly indicate
+   which source type each piece of information came from using labels like
+   "According to the PDF..." or "From the dataset...".
 
 You are talking to a researcher who wants deep, accurate insights — not surface-level summaries.
 """
@@ -55,6 +58,7 @@ def build_context(retrieved_chunks: list[dict], max_tokens: int = 3000) -> str:
     """
     Build a clean context string from retrieved chunks.
     Deduplicates and orders by relevance score.
+    Labels each source with its source_type (PDF or Dataset).
     """
     # Sort by score descending
     sorted_chunks = sorted(
@@ -70,8 +74,15 @@ def build_context(retrieved_chunks: list[dict], max_tokens: int = 3000) -> str:
         if total_words + words > max_tokens:
             break
 
+        # Determine source label
+        source_type = chunk.get("source_type", "pdf")
+        if source_type == "dataset":
+            type_label = "📊 Dataset"
+        else:
+            type_label = "📄 PDF"
+
         context_parts.append(
-            f"[Source {i+1} | Paper: {chunk['paper_title']} | Relevance: {chunk['score']}]\n{text}"
+            f"[Source {i+1} | {type_label} | Paper: {chunk['paper_title']} | Relevance: {chunk['score']}]\n{text}"
         )
         total_words += words
 

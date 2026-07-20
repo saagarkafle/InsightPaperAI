@@ -15,8 +15,9 @@ class AppView:
     def render_dashboard_screen(self):
         return render_dashboard()
 
-    def render_tabs(self, tab_chat, tab_figures, tab_search, tab_stats) -> None:
-        populate_tabs(tab_chat, tab_figures, tab_search, tab_stats)
+    def render_tabs(self, tab_chat, tab_figures, tab_search,
+                    tab_stats, tab_evaluate) -> None:
+        populate_tabs(tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate)
 
     def render_footer(self) -> None:
         render_footer()
