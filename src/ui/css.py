@@ -184,6 +184,7 @@ body,
     border-bottom: 1px solid var(--line-light);
 }
 
+
 .section-divider {
     height: 1px;
     background: var(--line-light);

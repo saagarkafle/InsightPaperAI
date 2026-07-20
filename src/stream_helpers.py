@@ -1,3 +1,4 @@
+import html as html_mod
 import json
 import os
 from dataclasses import asdict
@@ -84,12 +85,13 @@ def render_question_turn(prompt: str, active_paper_id: str,
             for src in chunks:
                 source_type = src.get("source_type", "pdf")
                 type_badge = "📄 PDF" if source_type == "pdf" else "📊 Dataset"
+                safe_text = html_mod.escape(src["text"][:300])
                 st.markdown(f"""
                 <div class="source-chunk">
                     <span class="score-badge">score: {src['score']}</span>
                     <span class="source-type-badge">{type_badge}</span>
                     &nbsp; chunk #{src['chunk_index']}<br/><br/>
-                    {src['text'][:300]}...
+                    {safe_text}...
                 </div>""", unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns(3)
