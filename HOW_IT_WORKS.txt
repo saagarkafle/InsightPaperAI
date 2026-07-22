@@ -1,0 +1,369 @@
+HOW INSIGHTPAPER AI WORKS
+A plain English explanation for anyone learning the project
+Written by Sagar Kafle
+================================================================================
+
+
+WHAT IS THIS APP?
+
+InsightPaper AI is a web application that lets you upload any research paper as
+a PDF and then ask questions about it in plain English. The AI answers your
+questions based strictly on what is written in your paper. It does not guess or
+make things up. This technique of grounding AI answers in real retrieved content
+is called RAG, which stands for Retrieval-Augmented Generation. The entire app
+is built in Python and runs in your browser through a framework called Streamlit.
+
+
+THE OVERALL STRUCTURE
+
+The codebase is organised into three layers following a pattern called MVC
+(Model-View-Controller). The entry point is a tiny file called app.py, which
+has just twelve lines of code. All it does is set up the browser tab title and
+hand control to the AppController. The controller is the brain of the app. It
+checks whether a paper has already been loaded and decides whether to show you
+the upload screen or the main dashboard. The AppModel handles all the logic like
+parsing, indexing and answering questions. The AppView handles everything visual
+like the landing page, the navbar, and the tabs. This separation keeps the code
+clean and easy to change one piece without breaking the others.
+
+
+STEP 1: UPLOADING THE PDF
+
+When you open the app you see a landing page with a file upload box. You pick
+your PDF and press the Process Paper button. At this point nothing has happened
+yet. The file is just sitting in memory. The real work begins as soon as you
+press the button.
+
+
+STEP 2: PARSING THE PDF
+
+The first thing the app does is open the PDF using a Python library called
+PyMuPDF, also known as fitz. Think of it like a PDF reader running silently in
+the background. It goes through every single page and reads all the text off it.
+It also cleans up the messy formatting that PDF files often have, like too many
+blank lines or weird spacing.
+
+At the same time, it looks for figures. It scans each page for images and then
+tries to match each image to a caption nearby, for example something like
+"Fig. 3 - Architecture of the proposed model". It saves every figure as an
+encoded image along with its caption and the page number it came from. By the
+end of this step the app has all the text from the paper, a list of figures with
+captions, and some basic information like word count and page count.
+
+
+STEP 3: SPLITTING THE TEXT INTO CHUNKS
+
+A full research paper might have fifteen thousand words or more. An AI model
+cannot process that much text at once because there are hard limits on how much
+you can feed in at one time. So the app splits the text into smaller pieces
+called chunks. Each chunk is five hundred words long. There is also a one
+hundred word overlap between each chunk and the next one. The overlap matters
+because if an important sentence happens to fall right at the boundary between
+two chunks, it will appear in both of them, so the meaning is never lost. A
+typical paper might produce around twenty to thirty chunks.
+
+
+STEP 4: TURNING THE TEXT INTO NUMBERS
+
+Computers do not understand words. They work with numbers. So the app uses a
+machine learning model called all-MiniLM-L6-v2 to convert each chunk of text
+into a list of three hundred and eighty four numbers. This list of numbers is
+called a vector or an embedding. The clever thing about this model is that text
+with similar meaning produces similar numbers, even if the words are completely
+different. For example the sentence "the model was trained on ImageNet" and the
+sentence "ImageNet was used during training" would produce very similar number
+lists. This is what makes semantic search possible. It finds meaning, not just
+matching keywords.
+
+
+STEP 5: STORING EVERYTHING IN PINECONE
+
+Pinecone is a vector database, which is a special kind of database designed
+specifically to store and search these lists of numbers very efficiently. For
+every chunk the app sends three things to Pinecone: the three hundred and eighty
+four numbers representing that chunk, the original text of the chunk, and some
+metadata like which paper it came from, which chunk number it is, and what type
+of source it is. Pinecone lives in the cloud on AWS servers. The app connects to
+it using an API key stored in a file called .env which never gets shared publicly.
+Once all the chunks are stored, the paper is fully indexed and ready to be
+searched.
+
+
+STEP 6: GENERATING A PAPER SUMMARY
+
+While the indexing is happening, the app also sends the first three thousand
+words of the paper to an AI model and asks it to return a structured summary.
+The AI is LLaMA 3.1, which is an open source language model made by Meta. It
+runs on a service called Groq, which is extremely fast and has a free tier for
+reasonable usage. The summary includes a one sentence description of the paper,
+the problem it is solving, the method it uses, the key findings, the limitations,
+some keywords, the difficulty level, and the field of research. This summary is
+shown on the dashboard so you get an instant overview of the paper before you
+even ask a question.
+
+
+STEP 7: THE MAIN DASHBOARD
+
+After processing is complete, the app takes you to the dashboard. On the left
+you see tabs for different sections: Ask Questions, Figures, Search, and Stats.
+In the middle you see the paper title and the summary cards showing the overview,
+key findings, and keywords. This is the main screen you use for everything.
+
+
+STEP 8: ASKING A QUESTION
+
+This is the core feature and the most interesting part. When you type a question
+like "What datasets were used for training?" the following sequence of events
+happens automatically.
+
+First, your question is converted into three hundred and eighty four numbers
+using the same model from Step 4. Then those numbers are sent to Pinecone, which
+searches through all the stored chunks and finds the five chunks whose numbers
+are mathematically closest to your question's numbers. These five chunks are the
+most relevant sections of the paper for your question.
+
+Next, the app takes those five chunks of text and builds a prompt that says
+something like: here are sections from a research paper, based only on these
+sections answer this question. That prompt is sent to LLaMA 3.1 on Groq. The
+model reads those specific sections and writes a focused answer.
+
+The reason we do it this way instead of just asking the AI directly is very
+important. If you asked a language model a question about a paper it has never
+seen, it would either say it does not know or it would hallucinate and make up
+something that sounds plausible but is completely wrong. By retrieving the
+actual relevant sections first and telling the model to use only those sections,
+we force it to be accurate and grounded. This is what RAG means.
+
+The answer is shown in the chat window. Below the answer you can expand a panel
+that shows all five source chunks that were used, each with a relevance score.
+You also see the latency in milliseconds and the token counts. If any figures in
+the paper match the topic of your question by keyword, those are shown as images
+below the answer as well.
+
+
+HOW THE DATASET FEATURE WORKS
+
+The app also supports uploading a custom dataset alongside or instead of a PDF.
+The dataset must be a CSV or JSON file and it must have at least two columns
+called question and answer. You can optionally include a third column called
+context, which would contain the relevant passage of text for each question.
+
+When you upload a dataset, the app reads and parses the file. If it is a CSV
+file it uses Python's built in CSV reader. If it is a JSON file it parses the
+array of objects. It then validates that the required columns are present. After
+validation, it extracts the text content from each row. If a context column
+exists it uses that text for indexing because it is more informative. If there
+is no context column it falls back to the answer column text. These pieces of
+text are then chunked, embedded, and stored in Pinecone exactly the same way
+the PDF text is, but they are tagged with the source type "dataset" instead of
+"pdf".
+
+This means that when you search or ask questions, the app can pull relevant
+chunks from both the PDF and the dataset at the same time, or you can toggle a
+source mode setting to restrict it to only the PDF or only the dataset.
+
+The dataset also unlocks an Evaluate tab on the dashboard. This tab lets you
+run automatic evaluation. You pick how many questions from your dataset you want
+to test, from one up to fifty. The app then loops through each question, runs the
+full RAG pipeline to generate an answer, and compares the generated answer to the
+gold standard answer from your dataset. It measures quality in two ways.
+
+The first way is called F1 score. This looks at the overlap of words between the
+generated answer and the gold answer. It calculates precision, which is how many
+words in the generated answer also appear in the gold answer, and recall, which is
+how many words in the gold answer were covered by the generated answer. It
+combines these into a single score between zero and one.
+
+The second way is semantic similarity. It takes both the generated answer and the
+gold answer, converts them both into embeddings using the same model, and then
+measures the cosine similarity between those two vectors. A score of one means
+the answers are semantically identical. A score close to zero means they are
+saying completely different things. This is more powerful than F1 because it
+captures meaning rather than just word overlap.
+
+After evaluation, the app shows you aggregate results like the mean F1 score and
+mean semantic similarity across all questions, and then a breakdown for each
+individual question showing the gold answer, the model answer, and both scores
+with colour coding so you can quickly see which questions the model got right and
+which ones it struggled with.
+
+
+SAVING YOUR SESSION
+
+Every time you process a paper or a dataset, the app saves your session to a
+file called .insightpaper_state.json in the project folder. This includes which
+papers you have indexed, which one is currently active, and dataset information.
+The next time you start the app it loads this file and restores your session
+automatically, so you do not have to re-upload and re-index the same paper every
+time you restart.
+
+
+FINE-TUNING THE EMBEDDING MODEL ON SQUAD V2
+
+After building the app, the embedding model was further improved by fine-tuning
+it on a well-known public dataset called SQuAD v2, which stands for Stanford
+Question Answering Dataset version 2. This dataset was created by Stanford
+University and contains around 150,000 question and answer pairs built from
+Wikipedia articles. Each row has three things: a passage of text called the
+context, a question about that passage, and the answer which is a span of text
+extracted directly from the context. Version 2 also includes around 50,000
+unanswerable questions, meaning questions where the answer is deliberately not
+present in the context, to test whether a model knows when to say it does not
+know. Those unanswerable questions were skipped during fine-tuning because they
+have no meaningful context to learn from.
+
+The dataset is published on Hugging Face at huggingface.co/datasets/rajpurkar/squad_v2
+and accessed directly in the fine-tuning script using a single line of code:
+load_dataset("rajpurkar/squad_v2", split="train"). This downloads the training
+split automatically and caches it on disk so it does not need to be downloaded
+again on the next run. Each row in the dataset has four fields. The id field is
+a unique identifier for the question. The title field is the Wikipedia article
+it came from. The context field is the specific paragraph being used. The
+question field is the question someone asked about that paragraph. And the
+answers field contains the answer text and the character position where it
+appears in the context. The fine-tuning script reads the question and context
+fields from each row and builds a training pair from them. The answers field is
+only checked to decide whether the question is answerable or not. If the answers
+list is empty the row is skipped. If it has at least one answer the pair is kept.
+
+The fine-tuning was done using a technique called MultipleNegativesRankingLoss.
+The idea is straightforward. You give the model pairs of questions and their
+correct contexts. During each training step, a batch of 32 pairs is processed
+at once. For each question in the batch, all the other contexts in that same
+batch act as negative examples, meaning wrong answers. The model is trained to
+pull the correct question and context pair closer together in vector space and
+push all the wrong pairings further apart. No manual labelling of negatives is
+needed because the batch structure handles that automatically.
+
+The training was run on 30,000 question and context pairs from the SQuAD v2
+training split. The unanswerable ones were filtered out first, leaving 30,000
+clean answerable pairs out of the roughly 42,000 that were checked. Training
+ran for one full epoch, which means every one of those 30,000 pairs was seen
+once. The batch size was 32, which resulted in 938 training steps in total. The
+first 93 steps used a warmup period where the learning rate gradually increased
+to avoid destabilising the model weights at the start. The training loss started
+at around 0.076 and finished at 0.071, showing the model was steadily improving.
+The whole process ran in approximately 14 minutes at a speed of about 35 samples
+per second, using the Apple MPS backend which is Apple Silicon's built-in GPU
+acceleration.
+
+Once training finished, the fine-tuned model was saved to a folder called
+models/fine_tuned_embedder inside the project directory. From that point on,
+the app automatically detects this folder when it starts up and loads the
+fine-tuned version instead of the original base model. This means the semantic
+search used when answering questions about your uploaded research paper now
+benefits from a model that has been specifically trained to understand how
+questions relate to passages of text, which is exactly what the Q&A feature does.
+
+If you ever want to retrain or remove the fine-tuning, you can simply delete the
+models/fine_tuned_embedder folder and the app will fall back to the original
+all-MiniLM-L6-v2 model automatically.
+
+
+WHAT CHANGED IN THE CODE AFTER FINE-TUNING
+
+Three things were added or changed in the codebase to support fine-tuning.
+
+The first was a brand new file called scripts/finetune_embedder.py. This is the
+training script. It handles downloading SQuAD v2 from Hugging Face, filtering
+out unanswerable questions, building the training pairs, running the training
+loop using MultipleNegativesRankingLoss, and saving the finished model. You only
+need to run this script once. After that the model sits on disk and the app uses
+it automatically.
+
+The second change was in src/rag_pipeline.py inside the get_embedder function.
+Before fine-tuning, this function always loaded the base all-MiniLM-L6-v2 model
+from Hugging Face. After the change, it first checks whether a folder called
+models/fine_tuned_embedder exists in the project root. If that folder is there,
+it loads the fine-tuned model from it. If not, it falls back to the original
+base model. This means no part of the app needs to be manually told to switch
+models. It happens automatically just by having the folder present.
+
+The third change was in requirements.txt. Two new packages were added. The first
+is the datasets library from Hugging Face, which is used in the fine-tuning
+script to download SQuAD v2 with a single line of code. The second is accelerate,
+which is required by the sentence-transformers training loop to manage the
+training process on Apple Silicon and other hardware backends.
+
+
+HOW FINE-TUNING AFFECTED THE QA OUTPUTS
+
+To measure the real difference fine-tuning made, a comparison was run using four
+research-style questions. Each question was paired with a correct context, which
+is the passage it should retrieve, and an unrelated wrong context. Both the base
+model and the fine-tuned model computed how similar each question was to each
+context. The result is called the margin, which is the similarity to the correct
+context minus the similarity to the wrong context. A higher positive margin means
+the model is better at separating the right answer from irrelevant noise. That is
+exactly what determines retrieval quality in the app.
+
+These are the actual numbers produced by running scripts/compare_models.py:
+
+  Question                                     Correct Sim   Wrong Sim    Margin
+  ---------------------------------------------------------------------------
+  BASE MODEL
+  What is the main method used in the study?      0.0961        0.2763   -0.1802
+  What datasets were used for evaluation?         0.4990        0.0010   +0.4980
+  What are the limitations of this approach?      0.3288        0.0248   +0.3039
+  What is the proposed solution to the problem?   0.0287       -0.0291   +0.0578
+
+  FINE-TUNED MODEL
+  What is the main method used in the study?      0.1300        0.2710   -0.1410
+  What datasets were used for evaluation?         0.5313       -0.0850   +0.6163
+  What are the limitations of this approach?      0.4603       -0.0009   +0.4613
+  What is the proposed solution to the problem?   0.0879       -0.0442   +0.1321
+
+  Average margin (correct - wrong similarity)
+    Base model:         +0.1699
+    Fine-tuned model:   +0.2672
+    Improvement:        +57.3%
+
+The results show two clear improvements. First, the correct similarity scores
+went up across all four questions. The fine-tuned model assigns higher scores to
+the passages that actually answer the question. Second, the wrong similarity
+scores went down across all four questions. The fine-tuned model has learned to
+push unrelated content further away in vector space. Together these make the
+margin larger, which means in practice the app is 57 percent better on average
+at ranking the right paper section above irrelevant ones when you ask a question.
+
+The first question about the main method is still negative in both models,
+meaning the wrong context scored higher than the correct one. This happens
+because the wrong context in that test pair used very formal academic language
+that the model associated with research methods. However, even on this hard case
+the fine-tuned model reduced the negative margin from minus 0.18 to minus 0.14,
+showing it moved in the right direction.
+
+In practical terms for the app, a better retrieval margin means that when you
+upload a paper and ask a question, the five chunks pulled from Pinecone are more
+likely to be the genuinely relevant sections of the paper. Since the LLM is only
+given those five chunks to work with, better retrieval leads directly to better,
+more accurate answers.
+
+
+WHAT YOU NEED TO RUN IT
+
+You need two API keys stored in a file called .env in the project folder.
+The first is a Pinecone API key from pinecone.io which has a free tier. The
+second is a Groq API key from console.groq.com which is also free for normal
+usage. Once those are set up you activate the Python virtual environment and run
+the command "streamlit run app.py" in the terminal. The app opens at
+http://localhost:8501 in your browser.
+
+To run the fine-tuning yourself, activate the virtual environment and run the
+command "python3 scripts/finetune_embedder.py". It will download SQuAD v2
+automatically from Hugging Face, train the model, and save it locally. After
+that, restart the Streamlit app to start using the fine-tuned model.
+
+
+SUMMARY OF TECHNOLOGIES USED
+
+Streamlit is the Python framework that creates the web interface. PyMuPDF reads
+and extracts content from PDF files. The sentence-transformers library with the
+all-MiniLM-L6-v2 model converts text into vector embeddings. Pinecone is the
+cloud vector database that stores and searches those embeddings. Groq is the API
+service that runs the AI model. LLaMA 3.1 is the open source language model
+made by Meta that actually reads the paper sections and writes the answers.
+The Hugging Face datasets library was used to download SQuAD v2 for fine-tuning.
+The accelerate library was used to manage the training loop on Apple Silicon.
+Everything ties together through the RAG pattern: retrieve first, then generate.
+================================================================================

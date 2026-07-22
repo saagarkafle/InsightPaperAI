@@ -8,13 +8,23 @@ from pinecone import Pinecone, ServerlessSpec
 
 _model = None
 
+# Path where the fine-tuned model is saved by scripts/finetune_embedder.py
+_FINE_TUNED_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "models", "fine_tuned_embedder"
+)
+_BASE_MODEL = "all-MiniLM-L6-v2"
+
 
 def get_embedder():
     global _model
     if _model is None:
-        # Lazy-import to avoid heavy imports at app startup (torch/transformers)
         from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
+        if os.path.isdir(_FINE_TUNED_PATH):
+            print(f"[embedder] Loading fine-tuned model from {_FINE_TUNED_PATH}")
+            _model = SentenceTransformer(_FINE_TUNED_PATH)
+        else:
+            print(f"[embedder] Loading base model: {_BASE_MODEL}")
+            _model = SentenceTransformer(_BASE_MODEL)
     return _model
 
 
