@@ -7,6 +7,7 @@ def render_css():
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
+    color-scheme: light !important;
     --bg: #FFFFFF;
     --bg-2: #F5F5F5;
     --bg-3: #FAFAFA;
@@ -37,23 +38,26 @@ def render_css():
 html,
 body,
 .stApp {
-    background: var(--bg) !important;
-    color: var(--text);
+    color-scheme: light !important;
+    background: #FFFFFF !important;
+    color: #1A1A2E !important;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
-[data-testid="stAppViewContainer"] {
-    background: var(--bg) !important;
+[data-testid="stAppViewContainer"],
+[data-testid="stBottom"],
+.main {
+    background: #FFFFFF !important;
+    color: #1A1A2E !important;
 }
 
 [data-testid="stHeader"] {
-    background: var(--bg) !important;
-    border-bottom: 1px solid var(--line);
+    display: none !important;
 }
 
 [data-testid="stMainBlockContainer"] {
-    padding-top: 0.6rem;
-    padding-bottom: 5rem;
+    padding-top: 0 !important;
+    padding-bottom: 2rem;
     max-width: 1280px;
 }
 
@@ -63,16 +67,20 @@ body,
     justify-content: space-between;
     align-items: center;
     gap: 14px;
-    padding: 16px 24px;
-    margin: -0.5rem -0.6rem 0 -0.6rem;
+    padding: 14px 0;
+    margin-bottom: 0;
     background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    z-index: 10;
 }
 
 .topbar-accent-line {
-    height: 2px;
+    height: 3px;
     background: var(--accent);
-    margin: 0 -0.6rem 20px -0.6rem;
+    margin: 0 0 20px 0;
     border: none;
+    border-radius: 0 0 2px 2px;
 }
 
 .brand {
@@ -85,8 +93,8 @@ body,
     width: 38px;
     height: 38px;
     border-radius: 10px;
-    background: var(--accent);
-    color: #FFFFFF;
+    background: #4F8EF7 !important;
+    color: #FFFFFF !important;
     display: grid;
     place-items: center;
     font-weight: 800;
@@ -98,11 +106,11 @@ body,
     font-size: 18px;
     line-height: 1;
     letter-spacing: -0.3px;
-    color: var(--text);
+    color: #1A1A2E !important;
 }
 
 .brand-subtitle {
-    color: var(--muted);
+    color: #6B7280 !important;
     font-size: 12px;
     margin-top: 3px;
     font-weight: 500;
@@ -616,26 +624,42 @@ body,
     border-radius: var(--radius-sm);
 }
 
+[data-testid="stFileUploaderDropzone"] {
+    background-color: #FFFFFF !important;
+    border: 2px dashed #D1D5DB !important;
+    border-radius: var(--radius-sm) !important;
+    color: #374151 !important;
+}
+
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #4F8EF7 !important;
+    background-color: #EBF2FE !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] *,
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] p,
+[data-testid="stFileUploader"] div {
+    color: #374151 !important;
+}
+
+[data-testid="stFileUploader"] button {
+    background-color: #FFFFFF !important;
+    color: #374151 !important;
+    border: 1px solid #D1D5DB !important;
+}
+
 /* ──────── FOOTER ──────── */
 .footer-bar {
-    position: fixed;
-    left: 50%;
-    bottom: 14px;
-    transform: translateX(-50%);
-    width: min(1280px, calc(100% - 2rem));
-    margin-top: 0;
-    padding: 10px 18px;
+    margin-top: 40px;
+    padding: 12px 18px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
     color: var(--muted);
     font-size: 12px;
-    z-index: 200;
-    box-shadow: var(--shadow);
 }
 
 /* ──────── METRICS ──────── */
