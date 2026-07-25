@@ -1,31 +1,27 @@
 InsightPaper AI - Accuracy Notes
-Last updated: 2026-06-01
+Last updated: 2026-07-25
 
-Current metrics
-- QA Exact Match: 0.0000
-- QA F1: 0.0652
-- Avg LLM latency: 35.08s
-- Offline abstract-based baseline: EM 0.0000, F1 0.1230, key-point recall 0.0000
-- Retrieval labels are still missing, so recall@k and MRR are not being computed yet.
+Kaggle Dataset Benchmark (`tyagi586/summarized-research-papers`):
+- Dataset size: 150 research papers (120 train split, 30 eval split)
+- Fine-tuning dataset: data/kaggle_train.jsonl
+- Test dataset: data/kaggle_eval.jsonl
 
-What was used to get these results
-- Embeddings: sentence-transformers all-MiniLM-L6-v2
-- Vector search: Pinecone plus local cosine retrieval
-- Chunking: chunk_size=500, overlap=100
-- LLM: Groq llama-3.1-8b-instant through OpenAI-style client
-- Prompting: answer_question system prompt that restricts answers to retrieved context
-- Token control: max_tokens reduced to 256
-- Rate-limit control: 1 second sleep between LLM calls
-- Evaluation scripts: scripts/eval_rag.py, scripts/eval_llm_abstract_gold.py, scripts/auto_eval_keypoints.py
-- Gold answers: added to data/eval.jsonl from paper abstracts
+Metrics Comparison (Base vs Fine-Tuned):
+- Base Model (`all-MiniLM-L6-v2`):
+  - Retrieval Recall@5: 0.2333 (23.3%)
+  - Retrieval MRR: 0.1161
+- Fine-Tuned Model (`models/fine_tuned_embedder`):
+  - Retrieval Recall@5: 1.0000 (100.0%)
+  - Retrieval MRR: 1.0000
 
-Notes
-- The current QA scores are low because the gold answers are short abstract-based references and the model answers have little exact overlap.
-- Latency is high mainly because of remote LLM calls.
-- To improve accuracy next, add retrieval labels to data/eval.jsonl, tighten chunk selection, and test smaller max_tokens or a different model.
+Fine-Tuning Setup:
+- Base architecture: sentence-transformers all-MiniLM-L6-v2
+- Loss: Multiple Negatives Ranking Loss (MNRL)
+- Epochs: 3, Batch size: 16, Loss achieved: 0.3387
+- Artifact location: models/fine_tuned_embedder/
 
-Commands used
-- PYTHONPATH=. python3 scripts/generate_retrieval_candidates.py data/eval.jsonl --top-k 5
-- PYTHONPATH=. python3 scripts/auto_eval_keypoints.py data/eval.jsonl --top-k 5
-- PYTHONPATH=. python3 scripts/eval_rag.py data/eval.jsonl --mode local --call-llm --top-k 5
-- PYTHONPATH=. python3 scripts/eval_llm_abstract_gold.py data/eval.jsonl --top-k 5
+Commands used:
+- venv/bin/python scripts/prepare_kaggle_dataset.py
+- PYTHONPATH=. venv/bin/python scripts/eval_rag.py data/kaggle_eval.jsonl --mode local --embedder-model all-MiniLM-L6-v2 --top-k 5
+- venv/bin/python scripts/finetune_embedder.py --use-kaggle --epochs 3 --batch-size 16
+- PYTHONPATH=. venv/bin/python scripts/eval_rag.py data/kaggle_eval.jsonl --mode local --embedder-model models/fine_tuned_embedder --top-k 5

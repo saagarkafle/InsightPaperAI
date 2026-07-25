@@ -6,20 +6,52 @@ import json
 from typing import Optional
 
 
+def normalize_row_schema(row: dict) -> dict:
+    """
+    Normalize row keys to lowercase and map Kaggle research paper dataset columns
+    (Title, Abstract, AI-Generated Summary, Keywords, Field) to standard question, answer, context.
+    """
+    norm = {k.strip().lower(): str(v).strip() for k, v in row.items() if k}
+    title = norm.get("title", "")
+    abstract = norm.get("abstract", "")
+    ai_summary = norm.get("ai-generated summary", "") or norm.get("ai_generated_summary", "") or norm.get("summary", "")
+    keywords = norm.get("keywords", "")
+    field = norm.get("field", "")
+
+    if title or abstract or ai_summary:
+        if "question" not in norm and title:
+            q_str = f"Summarize the main contribution and key findings of the research paper titled '{title}'."
+            if keywords:
+                q_str += f" Keywords: {keywords}."
+            norm["question"] = q_str
+        if "answer" not in norm:
+            norm["answer"] = ai_summary if ai_summary else abstract
+        if "context" not in norm:
+            ctx_parts = []
+            if title:
+                ctx_parts.append(f"Title: {title}")
+            if field:
+                ctx_parts.append(f"Field: {field}")
+            if keywords:
+                ctx_parts.append(f"Keywords: {keywords}")
+            if abstract:
+                ctx_parts.append(f"Abstract: {abstract}")
+            norm["context"] = "\n".join(ctx_parts)
+    return norm
+
+
 def parse_csv(file_content: bytes) -> list[dict]:
-    """Parse a CSV file with columns: question, answer, context (optional)."""
+    """Parse a CSV file with columns: question, answer, context (optional) or Kaggle research paper columns."""
     text = file_content.decode("utf-8", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     rows = []
     for row in reader:
-        # Normalize column names to lowercase
-        normalized = {k.strip().lower(): v.strip() for k, v in row.items() if k}
-        rows.append(normalized)
+        rows.append(normalize_row_schema(row))
     return rows
 
 
 def parse_json_dataset(file_content: bytes) -> list[dict]:
-    """Parse a JSON file containing an array of {question, answer, context} objects."""
+    """Parse a JSON file containing an array of objects."""
     text = file_content.decode("utf-8", errors="replace")
     data = json.loads(text)
     if not isinstance(data, list):
@@ -28,8 +60,7 @@ def parse_json_dataset(file_content: bytes) -> list[dict]:
     for item in data:
         if not isinstance(item, dict):
             raise ValueError("Each item in the JSON array must be an object.")
-        normalized = {k.strip().lower(): str(v).strip() for k, v in item.items() if k}
-        rows.append(normalized)
+        rows.append(normalize_row_schema(item))
     return rows
 
 
@@ -43,9 +74,9 @@ def validate_dataset(rows: list[dict]) -> tuple[bool, str]:
 
     first_row = rows[0]
     if "question" not in first_row:
-        return False, "Missing required column: 'question'. Found columns: " + ", ".join(first_row.keys())
+        return False, "Missing required column: 'question' or 'title'. Found columns: " + ", ".join(first_row.keys())
     if "answer" not in first_row:
-        return False, "Missing required column: 'answer'. Found columns: " + ", ".join(first_row.keys())
+        return False, "Missing required column: 'answer' or 'ai-generated summary'. Found columns: " + ", ".join(first_row.keys())
 
     # Check for non-empty values in at least one row
     has_content = False

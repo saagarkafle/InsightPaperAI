@@ -15,10 +15,14 @@ _FINE_TUNED_PATH = os.path.join(
 _BASE_MODEL = "all-MiniLM-L6-v2"
 
 
-def get_embedder():
+def get_embedder(model_name_or_path: Optional[str] = None):
     global _model
+    from sentence_transformers import SentenceTransformer
+    if model_name_or_path is not None:
+        print(f"[embedder] Loading specified model: {model_name_or_path}")
+        return SentenceTransformer(model_name_or_path)
+
     if _model is None:
-        from sentence_transformers import SentenceTransformer
         if os.path.isdir(_FINE_TUNED_PATH):
             print(f"[embedder] Loading fine-tuned model from {_FINE_TUNED_PATH}")
             _model = SentenceTransformer(_FINE_TUNED_PATH)

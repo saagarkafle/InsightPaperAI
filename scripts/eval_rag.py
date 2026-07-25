@@ -109,13 +109,14 @@ def main():
     parser.add_argument("--call-llm", action="store_true",
                         help="Call LLM for QA answers")
     parser.add_argument("--model", default=None, help="LLM model override")
+    parser.add_argument("--embedder-model", default=None, help="Path or name of embedder model to evaluate (e.g. all-MiniLM-L6-v2 or models/fine_tuned_embedder)")
     args = parser.parse_args()
 
     eval_path = Path(args.eval_file)
     if not eval_path.exists():
         raise SystemExit(f"Eval file not found: {eval_path}")
 
-    embedder = get_embedder()
+    embedder = get_embedder(args.embedder_model)
 
     retrieval_recalls = []
     retrieval_rr = []
@@ -132,74 +133,133 @@ def main():
             print(f"Warning: could not init LLM client: {e}")
             groq_client = None
 
-    for rec in load_eval(eval_path):
-        qid = rec.get("id")
-        query = rec.get("query")
-        gold_answers = rec.get("gold_answers", [])
-        gold_indices = set(rec.get("relevant_chunk_indices", []))
+    records = list(load_eval(eval_path))
 
-        # Load text
-        text = None
-        if rec.get("pdf"):
-            p = Path(rec.get("pdf"))
-            if not p.exists():
-                print(f"Skipping {qid}: pdf not found {p}")
+    # Check if this is a collection of context records for pooled corpus evaluation
+    has_inline_contexts = all(rec.get("context") for rec in records if not rec.get("pdf") and not rec.get("text_file"))
+
+    if has_inline_contexts and len(records) > 1:
+        print(f"Detected {len(records)} inline context records. Running corpus-wide retrieval benchmark...")
+        all_chunks = []
+        doc_map = []  # maps chunk_idx -> record index
+        for doc_idx, rec in enumerate(records):
+            text = str(rec["context"])
+            c_list = chunk_text(text, chunk_size=args.chunk_size, overlap=args.overlap)
+            for c in c_list:
+                all_chunks.append(c)
+                doc_map.append(doc_idx)
+
+        corpus_vecs = np.array(embed_texts(all_chunks, embedder))
+
+        for doc_idx, rec in enumerate(records):
+            query = rec["query"]
+            gold_answers = rec.get("gold_answers", [])
+            qvec = np.array(embed_query(query, embedder))
+            sims = cosine_sim(corpus_vecs, qvec)
+            idx_sort = list(np.argsort(-sims))
+            retrieved_doc_indices = [doc_map[i] for i in idx_sort[:args.top_k]]
+
+            # Retrieval metric: is the target doc_idx in top_k?
+            retrieval_recalls.append(1.0 if doc_idx in retrieved_doc_indices else 0.0)
+            rr = 0.0
+            for rank_pos, d_idx in enumerate(retrieved_doc_indices, start=1):
+                if d_idx == doc_idx:
+                    rr = 1.0 / rank_pos
+                    break
+            retrieval_rr.append(rr)
+
+            if args.call_llm and groq_client is not None:
+                top_chunks = [{
+                    "text": all_chunks[i],
+                    "score": float(sims[i]),
+                    "paper_title": records[doc_map[i]].get("title", f"doc_{doc_map[i]}"),
+                    "paper_id": records[doc_map[i]].get("id", ""),
+                    "chunk_index": int(i),
+                } for i in idx_sort[:args.top_k]]
+
+                start = time.time()
+                try:
+                    qa_resp = answer_question(query, top_chunks, client=groq_client, model=args.model) if args.model else answer_question(
+                        query, top_chunks, client=groq_client)
+                    latencies.append(time.time() - start)
+                    pred = qa_resp.answer.strip()
+                except Exception as e:
+                    print(f"LLM call failed for {rec.get('id')}: {e}")
+                    pred = ""
+
+                if gold_answers:
+                    em_scores.append(max(exact_match(pred, g) for g in gold_answers))
+                    f1_scores.append(max(f1_score(pred, g) for g in gold_answers))
+
+    else:
+        for rec in records:
+            qid = rec.get("id")
+            query = rec.get("query")
+            gold_answers = rec.get("gold_answers", [])
+            gold_indices = set(rec.get("relevant_chunk_indices", []))
+
+            # Load text
+            text = None
+            if rec.get("pdf"):
+                p = Path(rec.get("pdf"))
+                if not p.exists():
+                    print(f"Skipping {qid}: pdf not found {p}")
+                    continue
+                with p.open("rb") as f:
+                    pdf_bytes = f.read()
+                text = extract_text_from_pdf(pdf_bytes)
+            elif rec.get("text_file"):
+                tpath = Path(rec.get("text_file"))
+                if not tpath.exists():
+                    print(f"Skipping {qid}: text_file not found {tpath}")
+                    continue
+                text = tpath.read_text(encoding="utf-8")
+            elif rec.get("context"):
+                text = str(rec.get("context"))
+            else:
+                print(f"Skipping {qid}: no pdf/text_file/context provided")
                 continue
-            with p.open("rb") as f:
-                pdf_bytes = f.read()
-            text = extract_text_from_pdf(pdf_bytes)
-        elif rec.get("text_file"):
-            tpath = Path(rec.get("text_file"))
-            if not tpath.exists():
-                print(f"Skipping {qid}: text_file not found {tpath}")
-                continue
-            text = tpath.read_text(encoding="utf-8")
-        else:
-            print(f"Skipping {qid}: no pdf/text_file provided")
-            continue
 
-        chunks = chunk_text(
-            text, chunk_size=args.chunk_size, overlap=args.overlap)
+            chunks = chunk_text(
+                text, chunk_size=args.chunk_size, overlap=args.overlap)
 
-        top_idx, top_scores = run_local_retrieval(
-            chunks, query, embedder, top_k=args.top_k)
+            top_idx, top_scores = run_local_retrieval(
+                chunks, query, embedder, top_k=args.top_k)
 
-        # Retrieval metrics
-        if gold_indices:
-            retrieval_recalls.append(recall_at_k(
-                top_idx, gold_indices, args.top_k))
-            retrieval_rr.append(reciprocal_rank(top_idx, gold_indices))
+            # Retrieval metrics
+            if gold_indices:
+                retrieval_recalls.append(recall_at_k(
+                    top_idx, gold_indices, args.top_k))
+                retrieval_rr.append(reciprocal_rank(top_idx, gold_indices))
 
-        # Optional LLM call for QA
-        if args.call_llm and groq_client is not None:
-            # Build retrieved_chunks shape used by answer_question
-            retrieved_chunks = []
-            for rank, idx in enumerate(top_idx):
-                retrieved_chunks.append({
-                    "text": chunks[idx],
-                    "score": float(top_scores[rank]) if rank < len(top_scores) else 0.0,
-                    "paper_title": rec.get("pdf", rec.get("text_file", "unknown")),
-                    "paper_id": rec.get("id", ""),
-                    "chunk_index": int(idx),
-                })
+            # Optional LLM call for QA
+            if args.call_llm and groq_client is not None:
+                retrieved_chunks = []
+                for rank, idx in enumerate(top_idx):
+                    retrieved_chunks.append({
+                        "text": chunks[idx],
+                        "score": float(top_scores[rank]) if rank < len(top_scores) else 0.0,
+                        "paper_title": rec.get("pdf", rec.get("text_file", "unknown")),
+                        "paper_id": rec.get("id", ""),
+                        "chunk_index": int(idx),
+                    })
 
-            start = time.time()
-            try:
-                qa_resp = answer_question(query, retrieved_chunks, client=groq_client, model=args.model) if args.model else answer_question(
-                    query, retrieved_chunks, client=groq_client)
-                latency = (time.time() - start)
-                latencies.append(latency)
-                pred = qa_resp.answer.strip()
-            except Exception as e:
-                print(f"LLM call failed for {qid}: {e}")
-                pred = ""
+                start = time.time()
+                try:
+                    qa_resp = answer_question(query, retrieved_chunks, client=groq_client, model=args.model) if args.model else answer_question(
+                        query, retrieved_chunks, client=groq_client)
+                    latency = (time.time() - start)
+                    latencies.append(latency)
+                    pred = qa_resp.answer.strip()
+                except Exception as e:
+                    print(f"LLM call failed for {qid}: {e}")
+                    pred = ""
 
-            # Compute QA metrics vs golds (if provided)
-            if gold_answers:
-                em = max(exact_match(pred, g) for g in gold_answers)
-                f1 = max(f1_score(pred, g) for g in gold_answers)
-                em_scores.append(em)
-                f1_scores.append(f1)
+                if gold_answers:
+                    em = max(exact_match(pred, g) for g in gold_answers)
+                    f1 = max(f1_score(pred, g) for g in gold_answers)
+                    em_scores.append(em)
+                    f1_scores.append(f1)
 
     # Aggregate and print
     print("\nEvaluation results:\n")

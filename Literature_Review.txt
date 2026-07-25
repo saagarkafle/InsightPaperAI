@@ -29,6 +29,8 @@ While general-purpose sentence transformers perform reasonably well on open-doma
 
 Fine-tuning embedding models on Reading Comprehension benchmarks such as SQuAD 2.0 (Stanford Question Answering Dataset; Rajpurkar et al., 2018) teaches the model to align natural language questions directly with passage contexts containing the answers. SQuAD 2.0 comprises over 150,000 question-context-answer triples derived from academic and reference articles.
 
+However, general-purpose benchmarks like SQuAD are derived primarily from Wikipedia articles and may not capture the specialised vocabulary, structural conventions, and discourse patterns characteristic of scientific research papers. To address this domain gap, fine-tuning can additionally be performed on curated research paper corpora that contain structured metadata such as paper titles, abstracts, AI-generated summaries, and disciplinary keywords. By constructing training pairs that map research-oriented queries (derived from titles and keywords) to their corresponding abstracts and summaries, the embedding model learns the semantic relationships specific to academic literature, such as associating methodology-focused queries with experimental design passages, or linking finding-focused queries with results sections. This domain-specific adaptation complements the general reading comprehension knowledge acquired from SQuAD, producing an embedder that is both broadly capable and specifically tuned for scientific document retrieval.
+
 To fine-tune dense sentence embedder models efficiently without explicit negative labeling, contrastive loss functions such as MultipleNegativesRankingLoss (MNRL) are employed. Given a batch of N (question, positive context) pairs, MNRL treats the positive context of the i-th question as the target, while using the remaining (N - 1) contexts in the mini-batch as implicit negative examples. The model minimizes the cross-entropy loss over softmax-normalized cosine similarity scores:
 
     Loss = -log( exp(sim(q_i, c_i) / τ) / Σ_j exp(sim(q_i, c_j) / τ) )
@@ -40,7 +42,16 @@ Searching dense vector collections linearly across thousands of chunks exhibits 
 
 Cloud-native vector database platforms like Pinecone manage high-dimensional index management using serverless architectures. By storing 384-dimensional dense vectors alongside rich payload metadata (such as paper_id, chunk_index, source_type, and text snippets), vector databases enable instant cosine similarity retrieval with metadata filtering. This metadata-filtered retrieval allows users to scope semantic searches dynamically to specific research papers, user datasets, or global collections.
 
-3.4. Grounding Answers and Hallucination Mitigation
+3.4. Training and Evaluation Datasets
+The selection of appropriate datasets for both model training and system evaluation is fundamental to building a reliable RAG pipeline for scientific literature. Two complementary datasets serve distinct roles in this research.
+
+SQuAD 2.0 (Stanford Question Answering Dataset; Rajpurkar et al., 2018), published on Hugging Face at huggingface.co/datasets/rajpurkar/squad_v2, provides a large-scale general-purpose reading comprehension benchmark. It contains approximately 150,000 question-context-answer triples derived from Wikipedia articles, including roughly 50,000 deliberately unanswerable questions designed to test whether models can recognise when sufficient evidence is absent. This dataset is used for initial contrastive fine-tuning of the embedding model, establishing a broad foundation in question-to-passage alignment across diverse topics.
+
+For domain-specific training and evaluation, the Summarized Research Papers dataset (Tyagi, 2024), published on Kaggle at kaggle.com/datasets/tyagi586/summarized-research-papers, provides a curated collection of 150 scientific research paper records spanning multiple disciplines including Medical AI, Computer Vision, Natural Language Processing, and Robotics. Each record contains eight structured fields: Title, Authors, Publication Year, Abstract, AI-Generated Summary, Keywords, Field, and Source Link. This dataset was selected for several reasons. First, its structured metadata enables the automatic construction of realistic training pairs that mirror actual user queries about research papers, mapping title-and-keyword-derived queries to abstract-and-summary contexts. Second, its multi-disciplinary coverage ensures the fine-tuned model generalises across research domains rather than overfitting to a single subfield. Third, its manageable size of 150 records allows rapid experimentation with training-evaluation splits while still providing sufficient diversity for meaningful benchmarking. The dataset is split deterministically using an 80/20 ratio (120 papers for training, 30 papers for held-out evaluation), ensuring that evaluation is always performed on papers the model has never seen during training, thereby preventing data leakage and providing an honest estimate of generalisation performance.
+
+By combining a large general-purpose benchmark (SQuAD 2.0) with a smaller domain-specific corpus (Summarized Research Papers), the fine-tuning strategy follows a well-established transfer learning paradigm: broad pre-training on diverse data followed by focused adaptation on task-relevant data.
+
+3.5. Grounding Answers and Hallucination Mitigation
 General-purpose Large Language Models (LLMs) suffer from hallucination, generating plausible-sounding but factual ungrounded statements or invalid citations (Ji et al., 2023). Retrieval-Augmented Generation (P. Lewis et al., 2020; Karpukhin et al., 2020) resolves this by dynamically retrieving the top-K relevant document chunks via vector similarity search before passing them to an instruction-tuned LLM (such as LLaMA 3.1 via high-throughput inference backends like Groq).
 
 By enforcing strict system prompt constraints that compel the LLM to generate answers strictly from the provided context chunks, RAG eliminates hallucination, provides transparent source attribution, and guarantees verifiable answers grounded directly in the target research paper.
@@ -70,7 +81,7 @@ Based on the theoretical gaps and implementation requirements identified in the 
 * How effectively can an end-to-end RAG architecture utilizing a fine-tuned Sentence-Transformer embedder, Pinecone vector index, and LLaMA 3.1 LLM retrieve relevant paper contexts and generate accurate, source-grounded answers for academic research papers?
 
 To answer this overarching question, the following sub-questions guide system design, empirical implementation, and quantitative evaluation:
-1. To what extent does fine-tuning a lightweight embedding model (all-MiniLM-L6-v2) on SQuAD 2.0 via MultipleNegativesRankingLoss improve the retrieval margin between correct and distractor contexts?
+1. To what extent does fine-tuning a lightweight embedding model (all-MiniLM-L6-v2) on SQuAD 2.0 and the Kaggle Summarized Research Papers dataset via MultipleNegativesRankingLoss improve retrieval recall and mean reciprocal rank compared to the base pre-trained model?
 2. How do token-level F1 scores and dense semantic similarity metrics compare when evaluating model-generated answers against ground-truth dataset answers?
 3. How effectively can source-type metadata filtering (PDF vs. Dataset) isolate document domain contexts while maintaining real-time query latency (< 1.5s)?
 
@@ -94,5 +105,7 @@ Rajpurkar, P., Jia, R., & Liang, P. (2018). Know what you don't know: Unanswerab
 Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (pp. 3982–3992). Association for Computational Linguistics. https://doi.org/10.18653/v1/D19-1410
 
 Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. In Advances in Neural Information Processing Systems 30 (NeurIPS 2017) (pp. 5998–6008).
+
+Tyagi, A. (2024). Summarized research papers [Dataset]. Kaggle. https://www.kaggle.com/datasets/tyagi586/summarized-research-papers
 
 Zhang, T., Kishore, V., Wu, F., Weinberger, K. Q., & Artzi, Y. (2020). BERTScore: Evaluating text generation with BERT. In International Conference on Learning Representations (ICLR). https://openreview.net/forum?id=SkeHuCVFDr
