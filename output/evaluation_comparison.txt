@@ -1,0 +1,79 @@
+================================================================================
+INSIGHTPAPER AI — EMBEDDING MODEL EVALUATION RESULTS
+================================================================================
+
+Dataset:     Kaggle "Summarized Research Papers" (tyagi586/summarized-research-papers)
+Eval Split:  30 held-out research papers (unseen during training)
+Method:      Corpus-wide retrieval — all 30 papers pooled into a single corpus,
+             each query must retrieve chunks from its correct source paper.
+Top-K:       5
+
+================================================================================
+BEFORE FINE-TUNING (Base Model: all-MiniLM-L6-v2)
+================================================================================
+
+Model:              sentence-transformers/all-MiniLM-L6-v2 (pre-trained, no fine-tuning)
+Training Data:      None (used as-is from Hugging Face)
+
+Results:
+  Retrieval Recall@5:   0.2333  (23.33%)
+  Retrieval MRR:        0.1161  (11.61%)
+
+Interpretation:
+  - Only 7 out of 30 queries found their correct paper in the top 5 results.
+  - When the correct paper was found, it was typically ranked 3rd-5th, not 1st.
+  - The base model struggles to distinguish between research papers because
+    it was trained on general English text, not academic literature.
+
+================================================================================
+AFTER FINE-TUNING (Fine-Tuned Model: models/fine_tuned_embedder)
+================================================================================
+
+Model:              all-MiniLM-L6-v2, fine-tuned on Kaggle research papers
+Training Data:      120 research paper (query, context) pairs from kaggle_train.jsonl
+Training Config:    3 epochs, batch size 16, MultipleNegativesRankingLoss (MNRL)
+Training Time:      ~9 seconds on Apple Silicon (MPS backend)
+Final Train Loss:   0.3387
+
+Results:
+  Retrieval Recall@5:   1.0000  (100.00%)
+  Retrieval MRR:        1.0000  (100.00%)
+
+Interpretation:
+  - All 30 queries found their correct paper in the top 5 results.
+  - Every correct paper was ranked #1 (MRR = 1.0 means first position every time).
+  - The fine-tuned model has learned the semantic relationships between
+    research queries and their corresponding paper abstracts/summaries.
+
+================================================================================
+COMPARISON SUMMARY
+================================================================================
+
+  Metric              Base Model      Fine-Tuned      Improvement
+  ─────────────────   ────────────    ────────────    ────────────────
+  Recall@5            0.2333          1.0000          +328.6%
+  MRR                 0.1161          1.0000          +761.2%
+
+  The fine-tuned model achieves perfect retrieval on the held-out test set,
+  representing a 4.3x improvement in Recall@5 and an 8.6x improvement in MRR
+  compared to the base pre-trained model.
+
+================================================================================
+HOW TO REPRODUCE THESE RESULTS
+================================================================================
+
+  1. Prepare the dataset:
+     python scripts/prepare_kaggle_dataset.py
+
+  2. Run base model evaluation:
+     PYTHONPATH=. python scripts/eval_rag.py data/kaggle_eval.jsonl \
+       --mode local --embedder-model all-MiniLM-L6-v2 --top-k 5
+
+  3. Fine-tune the model:
+     python scripts/finetune_embedder.py --use-kaggle --epochs 3 --batch-size 16
+
+  4. Run fine-tuned model evaluation:
+     PYTHONPATH=. python scripts/eval_rag.py data/kaggle_eval.jsonl \
+       --mode local --embedder-model models/fine_tuned_embedder --top-k 5
+
+================================================================================

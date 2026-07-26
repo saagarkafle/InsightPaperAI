@@ -1,32 +1,38 @@
 """
 scripts/finetune_embedder.py
 
-Fine-tune the all-MiniLM-L6-v2 embedding model on SQuAD v2.
+Fine-tune the all-MiniLM-L6-v2 embedding model for research paper retrieval.
 
-What this does:
-  - Downloads SQuAD v2 from Hugging Face (~87k answerable Q&A pairs)
-  - Trains the embedding model on (question, context) pairs
-  - The model learns: "questions should be close to their relevant context in vector space"
-  - Saves the fine-tuned model to: models/fine_tuned_embedder/
-  - Next time you run the app, it automatically uses the fine-tuned model
+Supports two training data sources:
+  1. Kaggle 'Summarized Research Papers' dataset (via --use-kaggle or --dataset)
+  2. SQuAD v2 from Hugging Face (fallback when no local dataset is provided)
+
+The model learns: "queries should be close to their relevant context in vector
+space" using MultipleNegativesRankingLoss (MNRL).
+
+Saves the fine-tuned model to: models/fine_tuned_embedder/
+Next time you run the app, it automatically uses the fine-tuned model.
 
 Run with:
-  source venv/bin/activate
-  python scripts/finetune_embedder.py
+  python scripts/finetune_embedder.py --use-kaggle --epochs 3
+  python scripts/finetune_embedder.py --dataset data/kaggle_train.jsonl --epochs 2
 
 Expected time:
-  ~10-15 minutes on CPU, ~3-5 minutes on GPU
+  Kaggle (120 pairs):  ~10 seconds on Apple Silicon
+  SQuAD (30k pairs):   ~10-15 minutes on CPU, ~3-5 minutes on GPU
 """
 
+import argparse
+import json
 import logging
 import os
 import sys
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# ─── Config Defaults ──────────────────────────────────────────────────────────
 BASE_MODEL = "all-MiniLM-L6-v2"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "models", "fine_tuned_embedder")
-MAX_SAMPLES = 30_000    # 30k pairs — enough to improve, fast enough to run
+MAX_SAMPLES = 30_000
 BATCH_SIZE = 32
 EPOCHS = 1
 # ──────────────────────────────────────────────────────────────────────────────
@@ -43,15 +49,15 @@ def check_dependencies():
     """Make sure required libraries are installed."""
     missing = []
     try:
-        import datasets
+        import datasets  # noqa: F401
     except ImportError:
         missing.append("datasets")
     try:
-        import sentence_transformers
+        import sentence_transformers  # noqa: F401
     except ImportError:
         missing.append("sentence-transformers")
     try:
-        import torch
+        import torch  # noqa: F401
     except ImportError:
         missing.append("torch")
 
@@ -100,22 +106,35 @@ def load_squad_pairs(max_samples: int):
 def load_jsonl_pairs(filepath: str, max_samples: int):
     """
     Load training pairs from a JSONL file (e.g. data/kaggle_train.jsonl).
-    Extracts (question/query/title, context/abstract/answer) pairs.
+
+    Expects each line to be a JSON object with at least one of:
+      - question / query / title  → used as the query text
+      - context / abstract / answer → used as the target passage
     """
-    import json
     from sentence_transformers import InputExample
 
     log.info(f"Loading training pairs from JSONL: {filepath}")
     examples = []
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
-            if not line.strip():
+            line = line.strip()
+            if not line:
                 continue
             item = json.loads(line)
-            question = item.get("question") or item.get("query") or item.get("title", "")
-            context = item.get("context") or item.get("abstract") or item.get("answer", "")
+            question = (
+                item.get("question")
+                or item.get("query")
+                or item.get("title", "")
+            )
+            context = (
+                item.get("context")
+                or item.get("abstract")
+                or item.get("answer", "")
+            )
             if question and context:
-                examples.append(InputExample(texts=[str(question).strip(), str(context).strip()]))
+                examples.append(
+                    InputExample(texts=[str(question).strip(), str(context).strip()])
+                )
             if len(examples) >= max_samples:
                 break
 
@@ -123,16 +142,51 @@ def load_jsonl_pairs(filepath: str, max_samples: int):
     return examples
 
 
+def _resolve_dataset_path(args) -> str | None:
+    """Determine the dataset file to use based on CLI arguments."""
+    if args.dataset:
+        return args.dataset
+    if args.use_kaggle:
+        return os.path.join(PROJECT_ROOT, "data", "kaggle_train.jsonl")
+    # Auto-detect if kaggle_train.jsonl exists
+    auto_path = os.path.join(PROJECT_ROOT, "data", "kaggle_train.jsonl")
+    if os.path.exists(auto_path):
+        return auto_path
+    return None
+
+
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Fine-tune embedding model on research Q&A pairs")
-    parser.add_argument("--dataset", default=None, help="Path to JSONL dataset file (e.g. data/kaggle_train.jsonl)")
-    parser.add_argument("--use-kaggle", action="store_true", help="Use pre-generated data/kaggle_train.jsonl dataset")
-    parser.add_argument("--base-model", default=BASE_MODEL, help="Base Hugging Face model or path")
-    parser.add_argument("--output-dir", default=OUTPUT_DIR, help="Directory to save fine-tuned model")
-    parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help="Batch size for training")
-    parser.add_argument("--max-samples", type=int, default=MAX_SAMPLES, help="Max dataset samples")
+    parser = argparse.ArgumentParser(
+        description="Fine-tune embedding model on research Q&A pairs"
+    )
+    parser.add_argument(
+        "--dataset", default=None,
+        help="Path to JSONL dataset file (e.g. data/kaggle_train.jsonl)",
+    )
+    parser.add_argument(
+        "--use-kaggle", action="store_true",
+        help="Use pre-generated data/kaggle_train.jsonl dataset",
+    )
+    parser.add_argument(
+        "--base-model", default=BASE_MODEL,
+        help="Base Hugging Face model or local path (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--output-dir", default=OUTPUT_DIR,
+        help="Directory to save fine-tuned model",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=EPOCHS,
+        help="Number of training epochs (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=BATCH_SIZE,
+        help="Batch size for training (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--max-samples", type=int, default=MAX_SAMPLES,
+        help="Maximum number of training pairs to use (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     check_dependencies()
@@ -140,16 +194,12 @@ def main():
     from sentence_transformers import SentenceTransformer, losses
     from torch.utils.data import DataLoader
 
-    output_dir = args.output_dir
-
     # ── Load base model ──────────────────────────────────────────────────────
     log.info(f"Loading base model: {args.base_model}")
     model = SentenceTransformer(args.base_model)
 
     # ── Load training data ───────────────────────────────────────────────────
-    dataset_path = args.dataset
-    if args.use_kaggle or (not dataset_path and os.path.exists(os.path.join(PROJECT_ROOT, "data", "kaggle_train.jsonl"))):
-        dataset_path = os.path.join(PROJECT_ROOT, "data", "kaggle_train.jsonl")
+    dataset_path = _resolve_dataset_path(args)
 
     if dataset_path and os.path.exists(dataset_path):
         train_examples = load_jsonl_pairs(dataset_path, args.max_samples)
@@ -162,39 +212,39 @@ def main():
         sys.exit(1)
 
     train_dataloader = DataLoader(
-        train_examples,
-        shuffle=True,
-        batch_size=args.batch_size,
+        train_examples, shuffle=True, batch_size=args.batch_size,
     )
 
     # ── Loss: Multiple Negatives Ranking Loss ────────────────────────────────
+    # For each (question, context) pair in a batch, all other contexts in that
+    # batch act as negatives. The model learns to pull matching pairs together
+    # and push non-matching pairs apart. No explicit negative labels needed.
     train_loss = losses.MultipleNegativesRankingLoss(model)
-
     warmup_steps = int(len(train_dataloader) * args.epochs * 0.1)
 
-    log.info(f"Starting fine-tuning...")
+    log.info("Starting fine-tuning...")
     log.info(f"  Pairs:       {len(train_examples):,}")
     log.info(f"  Batch size:  {args.batch_size}")
     log.info(f"  Epochs:      {args.epochs}")
     log.info(f"  Warmup:      {warmup_steps} steps")
-    log.info(f"  Output:      {output_dir}")
+    log.info(f"  Output:      {args.output_dir}")
 
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # ── Train ────────────────────────────────────────────────────────────────
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
         epochs=args.epochs,
         warmup_steps=warmup_steps,
-        output_path=output_dir,
+        output_path=args.output_dir,
         show_progress_bar=True,
         checkpoint_save_steps=5000,
-        checkpoint_path=output_dir,
+        checkpoint_path=args.output_dir,
     )
 
     log.info("=" * 60)
     log.info("Fine-tuning complete!")
-    log.info(f"Model saved to: {output_dir}")
+    log.info(f"Model saved to: {args.output_dir}")
     log.info("Restart the Streamlit app to use the fine-tuned model.")
     log.info("=" * 60)
 

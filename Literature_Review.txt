@@ -68,14 +68,22 @@ Evaluating the quality of generated answers in RAG pipelines against gold-standa
       Semantic Similarity = (v_pred · v_ref) / (||v_pred|| * ||v_ref||)
   Unlike F1, semantic similarity captures conceptual alignment even when the model rephrases the answer using entirely different vocabulary (Zhang et al., 2020).
 
-4.2. Retrieval Margin Analysis
-Evaluating retrieval quality independently of LLM generation is critical for diagnosing RAG bottlenecks. The Retrieval Margin measures the similarity gap between a query's correct context passage (c_pos) and a top distractor context passage (c_neg):
+4.2. Retrieval Quality Metrics
+Evaluating retrieval quality independently of LLM generation is critical for diagnosing RAG bottlenecks. Three complementary metrics are used to assess whether the embedding model surfaces the correct document chunks:
+
+* Recall@K measures the proportion of queries for which at least one relevant document or chunk appears within the top-K retrieved results. For corpus-wide evaluation across multiple research papers, this tests whether the system retrieves chunks belonging to the correct source paper when searching across the entire document collection. A Recall@5 of 1.0 indicates perfect retrieval — every query found its target paper in the top 5 results.
+
+* Mean Reciprocal Rank (MRR) captures not just whether the correct result appears in the top-K, but how highly it is ranked. For each query, the reciprocal rank is 1/r where r is the position of the first relevant result. MRR averages this across all queries:
+      MRR = (1/|Q|) * Σ_i (1 / rank_i)
+  An MRR of 1.0 means the correct result was consistently ranked first.
+
+* Retrieval Margin measures the similarity gap between a query's correct context passage (c_pos) and a top distractor context passage (c_neg):
       Margin = CosineSimilarity(query, c_pos) - CosineSimilarity(query, c_neg)
 
-A higher positive margin indicates that the embedding model effectively segregates relevant information from noise, ensuring that the downstream LLM receives accurate context within its top-K retrieved window.
+Together, these metrics provide a comprehensive view of retrieval performance: Recall@K confirms coverage, MRR confirms ranking quality, and Retrieval Margin confirms the embedding model's ability to segregate relevant information from noise.
 
 5. Conclusion and Core Research Questions
-The literature confirms that integrating PDF parsing, fine-tuned dense vector embeddings (Sentence-Transformers), cloud vector databases (Pinecone), and instruction-tuned generative LLMs (LLaMA 3.1) under a Retrieval-Augmented Generation architecture offers a scalable solution for scientific literature analysis.
+The literature confirms that integrating PDF parsing, fine-tuned dense vector embeddings (Sentence-Transformers), cloud vector databases (Pinecone), and instruction-tuned generative LLMs (LLaMA 3.1) under a Retrieval-Augmented Generation architecture offers a scalable solution for scientific literature analysis. The availability of curated research paper datasets such as the Kaggle Summarized Research Papers corpus (Tyagi, 2024), combined with established reading comprehension benchmarks (SQuAD 2.0), provides the training and evaluation foundation necessary to empirically validate this architecture.
 
 Based on the theoretical gaps and implementation requirements identified in the literature, this research project addresses the following primary research question:
 * How effectively can an end-to-end RAG architecture utilizing a fine-tuned Sentence-Transformer embedder, Pinecone vector index, and LLaMA 3.1 LLM retrieve relevant paper contexts and generate accurate, source-grounded answers for academic research papers?
@@ -104,8 +112,8 @@ Rajpurkar, P., Jia, R., & Liang, P. (2018). Know what you don't know: Unanswerab
 
 Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (pp. 3982–3992). Association for Computational Linguistics. https://doi.org/10.18653/v1/D19-1410
 
-Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. In Advances in Neural Information Processing Systems 30 (NeurIPS 2017) (pp. 5998–6008).
-
 Tyagi, A. (2024). Summarized research papers [Dataset]. Kaggle. https://www.kaggle.com/datasets/tyagi586/summarized-research-papers
+
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. In Advances in Neural Information Processing Systems 30 (NeurIPS 2017) (pp. 5998–6008).
 
 Zhang, T., Kishore, V., Wu, F., Weinberger, K. Q., & Artzi, Y. (2020). BERTScore: Evaluating text generation with BERT. In International Conference on Learning Representations (ICLR). https://openreview.net/forum?id=SkeHuCVFDr

@@ -1,0 +1,9 @@
+[embedder] Loading specified model: models/fine_tuned_embedder
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 6909.34it/s]
+Detected 30 inline context records. Running corpus-wide retrieval benchmark...
+
+Evaluation results:
+
+Retrieval recall@5: 1.0000
+Retrieval MRR: 1.0000
+LLM not called; QA metrics skipped.
