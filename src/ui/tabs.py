@@ -275,8 +275,12 @@ def populate_tabs(tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate):
 def _run_evaluation(eval_rows: list[dict]):
     """Run the evaluation pipeline on selected rows."""
     from src.evaluation import (compute_aggregate_metrics, evaluate_single)
-    from src.llm_qa import answer_question
+    from src.llm_qa import AVAILABLE_MODELS, DEFAULT_MODEL, answer_question
     from src.rag_pipeline import semantic_search
+
+    # Resolve the selected model
+    model_name = st.session_state.get("selected_model") or DEFAULT_MODEL
+    model_id = AVAILABLE_MODELS.get(model_name, AVAILABLE_MODELS[DEFAULT_MODEL])
 
     results = []
     progress_bar = st.progress(0.0)
@@ -310,6 +314,7 @@ def _run_evaluation(eval_rows: list[dict]):
             question=question,
             retrieved_chunks=chunks,
             client=st.session_state.groq_client,
+            model=model_id,
         )
 
         result = evaluate_single(

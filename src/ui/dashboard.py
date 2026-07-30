@@ -123,6 +123,24 @@ def render_dashboard():
 
     # ─── Right Sidebar ───
     with dashboard_right:
+        # ─── Model Selector ───
+        from src.llm_qa import AVAILABLE_MODELS, DEFAULT_MODEL
+        model_names = list(AVAILABLE_MODELS.keys())
+        current_model = st.session_state.get("selected_model") or DEFAULT_MODEL
+        try:
+            model_idx = model_names.index(current_model)
+        except ValueError:
+            model_idx = 0
+
+        selected_model = st.selectbox(
+            "LLM Model",
+            options=model_names,
+            index=model_idx,
+            key="dashboard_model_select",
+        )
+        st.session_state.selected_model = selected_model
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
         # ─── Source Mode Toggle ───
         has_pdf = bool(st.session_state.papers)
         if has_pdf and has_dataset:
@@ -145,3 +163,4 @@ def render_dashboard():
             "Start new session", use_container_width=True)
 
     return tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate, reset_requested
+

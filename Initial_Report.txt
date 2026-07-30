@@ -1,0 +1,372 @@
+================================================================================
+INITIAL REPORT
+================================================================================
+InsightPaper AI: A RAG-Based System for Automated Research Paper Analysis
+Using Fine-Tuned Sentence Transformers and LLaMA 3.1
+
+Student: Sagar Kafle
+================================================================================
+
+
+================================================================================
+2. PROJECT DETAILS
+================================================================================
+
+Project Title:
+InsightPaper AI: A RAG-Based System for Automated Research Paper Analysis Using Fine-Tuned Sentence Transformers and LLaMA 3.1
+
+Summary of Project (300 words):
+
+This project develops InsightPaper AI, a web-based application that enables researchers, students, and academics to upload scientific research papers as PDFs and interact with them through natural language questions. The system answers user queries based strictly on the content of the uploaded paper, eliminating hallucination and ensuring factual accuracy through a Retrieval-Augmented Generation (RAG) architecture.
+
+The primary research question is: how effectively can an end-to-end RAG architecture utilising a fine-tuned Sentence-Transformer embedder, Pinecone vector index, and LLaMA 3.1 LLM retrieve relevant paper contexts and generate accurate, source-grounded answers for academic research papers? Supporting sub-questions investigate the impact of domain-specific fine-tuning on retrieval accuracy, the comparative effectiveness of token-level F1 and semantic similarity evaluation metrics, and the real-time performance of metadata-filtered retrieval.
+
+The methodology combines several techniques. PDF documents are parsed and split into overlapping text chunks using PyMuPDF. Each chunk is embedded into a 384-dimensional vector space using the all-MiniLM-L6-v2 Sentence-Transformer model, which has been fine-tuned on the Kaggle Summarized Research Papers dataset (150 papers, 80/20 train/evaluation split) using MultipleNegativesRankingLoss contrastive learning. Embeddings are stored and searched using Pinecone, a cloud-native vector database. Retrieved context chunks are passed to Meta's LLaMA 3.1 language model via Groq for answer generation, with strict system prompts enforcing source-grounded responses.
+
+The key deliverables are: (1) a fully functional Streamlit web application with PDF upload, semantic search, automated summarisation, and question-answering capabilities; (2) a fine-tuned embedding model demonstrating measurable improvement over the base model; and (3) a quantitative evaluation framework measuring Recall@K, Mean Reciprocal Rank, token-level F1, and semantic similarity.
+
+The project is evaluated by comparing base model retrieval performance (Recall@5: 23.3%, MRR: 11.6%) against the fine-tuned model (Recall@5: 100%, MRR: 100%) on 30 held-out test papers, alongside qualitative user testing of the application interface and answer quality.
+
+
+================================================================================
+3. LITERATURE REVIEW
+================================================================================
+
+Literature Review: Automated Research Paper Summarisation, Retrieval-Augmented Generation (RAG), and Question Answering
+
+1. Introduction
+The volume of scientific literature published globally is expanding at an exponential rate. Researchers, academics, and students across virtually all technical disciplines face an overwhelming corpus of academic papers, preprints, and conference proceedings that cannot feasibly be read in full. Traditional manual reading methods struggle to keep pace with this influx, creating significant cognitive overload, information processing bottlenecks, and lost productivity during literature reviews.
+
+To address this challenge, contemporary Natural Language Processing (NLP) techniques provide automated methods for parsing, indexing, summarising, and extracting knowledge from academic literature. Recent advancements in deep learning, specifically transformer-based architectures, dense vector representation learning, and Large Language Models (LLMs), have transformed document processing and information retrieval. This literature review examines the theoretical foundations, algorithmic components, fine-tuning methodologies, and evaluation frameworks necessary to build an end-to-end system capable of parsing scientific PDFs, performing dense semantic search, and answering natural language questions grounded strictly in paper context.
+
+In the following sections, the core theoretical foundations of transformer-based embeddings, Retrieval-Augmented Generation (RAG), fine-tuning via contrastive learning, vector space index management, and quantitative evaluation metrics are critically reviewed to establish the scientific foundation for this research project.
+
+2. Deep Learning and Document Processing Foundations
+2.1. Transformer Architectures in Academic NLP
+Modern natural language processing relies predominantly on the Transformer architecture introduced by Vaswani et al. (2017). By replacing traditional recurrent neural networks (RNNs) with multi-head self-attention mechanisms, transformers capture long-range contextual dependencies across sequence tokens in parallel. This architectural leap enabled pre-trained language models to achieve state-of-the-art performance across document parsing, translation, summarisation, and reading comprehension.
+
+In scientific literature processing, applying transformers serves two main goals: (1) mapping dense academic prose into continuous vector representations that capture deep semantic relationships, and (2) generating fluent, contextually accurate answers to user queries grounded strictly within retrieved paper context.
+
+2.2. PDF Parsing, Document Structuring, and Text Chunking
+Scientific publications present unique structural challenges compared to raw unstructured text. Research papers contain complex hierarchical elements including multi-column layouts, figures, mathematical equations, captions, and reference sections. Effective document ingestion requires robust extraction tools (such as PyMuPDF/fitz) to separate text streams, extract embedded images, and associate figures with corresponding caption text.
+
+Furthermore, Large Language Models and embedding models operate under strict maximum token context windows. A complete research paper typically contains 5,000 to 20,000 words, far exceeding standard embedding model context limits (e.g., 512 tokens for MiniLM). Direct truncation risks dropping critical methodology or conclusion sections. To resolve this, text chunking protocols divide documents into smaller overlapping segments (e.g., 500 words per chunk with a 100-word sliding window overlap). The sliding window overlap preserves semantic continuity across chunk boundaries, ensuring that key conceptual transitions and multi-sentence statements are not fractured during indexing.
+
+3. Retrieval-Augmented Generation (RAG) and Semantic Search
+3.1. Dense Vector Embeddings and Sentence Transformers
+Traditional keyword matching algorithms (such as TF-IDF and BM25) rely on literal token matching, failing to capture semantic synonyms, paraphrases, or high-level conceptual context. Dense passage retrieval addresses this limitation by projecting text chunks into continuous low-dimensional vector spaces using Siamese transformer networks.
+
+The Sentence-BERT framework and lightweight MiniLM variants like all-MiniLM-L6-v2 (Reimers & Gurevych, 2019) map sentences into dense 384-dimensional vector spaces. Within this manifold, geometric distances (such as cosine similarity) measure true semantic relevance regardless of surface-level vocabulary differences. For example, a query asking "What methodology was employed?" will map close to chunks describing "experimental setup", "model design", or "algorithmic implementation".
+
+3.2. Embedding Model Fine-Tuning via Contrastive Learning
+While general-purpose sentence transformers perform reasonably well on open-domain tasks, domain adaptation and task-specific fine-tuning significantly enhance retrieval precision for research Question Answering.
+
+Fine-tuning embedding models on Reading Comprehension benchmarks such as SQuAD 2.0 (Stanford Question Answering Dataset; Rajpurkar et al., 2018) teaches the model to align natural language questions directly with passage contexts containing the answers. SQuAD 2.0 comprises over 150,000 question-context-answer triples derived from academic and reference articles.
+
+However, general-purpose benchmarks like SQuAD are derived primarily from Wikipedia articles and may not capture the specialised vocabulary, structural conventions, and discourse patterns characteristic of scientific research papers. To address this domain gap, fine-tuning can additionally be performed on curated research paper corpora that contain structured metadata such as paper titles, abstracts, AI-generated summaries, and disciplinary keywords. By constructing training pairs that map research-oriented queries (derived from titles and keywords) to their corresponding abstracts and summaries, the embedding model learns the semantic relationships specific to academic literature, such as associating methodology-focused queries with experimental design passages, or linking finding-focused queries with results sections. This domain-specific adaptation complements the general reading comprehension knowledge acquired from SQuAD, producing an embedder that is both broadly capable and specifically tuned for scientific document retrieval.
+
+To fine-tune dense sentence embedder models efficiently without explicit negative labeling, contrastive loss functions such as MultipleNegativesRankingLoss (MNRL) are employed. Given a batch of N (question, positive context) pairs, MNRL treats the positive context of the i-th question as the target, while using the remaining (N - 1) contexts in the mini-batch as implicit negative examples. The model minimizes the cross-entropy loss over softmax-normalized cosine similarity scores:
+
+    Loss = -log( exp(sim(q_i, c_i) / τ) / Σ_j exp(sim(q_i, c_j) / τ) )
+
+This contrastive objective pulls matching question-context pairs closer together in vector space while actively pushing non-matching pairs further apart. Empirically, fine-tuning lightweight models (e.g., all-MiniLM-L6-v2) on SQuAD 2.0 increases retrieval margins (the gap between correct context similarity and distractor context similarity) by upwards of 50%, directly improving downstream RAG retrieval accuracy.
+
+3.3. Cloud Vector Databases and High-Dimensional Indexing
+Searching dense vector collections linearly across thousands of chunks exhibits O(N) time complexity, becoming a performance bottleneck as document libraries scale. Vector databases solve this by organizing high-dimensional embeddings into optimized index structures.
+
+Cloud-native vector database platforms like Pinecone manage high-dimensional index management using serverless architectures. By storing 384-dimensional dense vectors alongside rich payload metadata (such as paper_id, chunk_index, source_type, and text snippets), vector databases enable instant cosine similarity retrieval with metadata filtering. This metadata-filtered retrieval allows users to scope semantic searches dynamically to specific research papers, user datasets, or global collections.
+
+3.4. Training and Evaluation Datasets
+The selection of appropriate datasets for both model training and system evaluation is fundamental to building a reliable RAG pipeline for scientific literature. Two complementary datasets serve distinct roles in this research.
+
+SQuAD 2.0 (Stanford Question Answering Dataset; Rajpurkar et al., 2018), published on Hugging Face at huggingface.co/datasets/rajpurkar/squad_v2, provides a large-scale general-purpose reading comprehension benchmark. It contains approximately 150,000 question-context-answer triples derived from Wikipedia articles, including roughly 50,000 deliberately unanswerable questions designed to test whether models can recognise when sufficient evidence is absent. This dataset is used for initial contrastive fine-tuning of the embedding model, establishing a broad foundation in question-to-passage alignment across diverse topics.
+
+For domain-specific training and evaluation, the Summarized Research Papers dataset (Tyagi, 2024), published on Kaggle at kaggle.com/datasets/tyagi586/summarized-research-papers, provides a curated collection of 150 scientific research paper records spanning multiple disciplines including Medical AI, Computer Vision, Natural Language Processing, and Robotics. Each record contains eight structured fields: Title, Authors, Publication Year, Abstract, AI-Generated Summary, Keywords, Field, and Source Link. This dataset was selected for several reasons. First, its structured metadata enables the automatic construction of realistic training pairs that mirror actual user queries about research papers, mapping title-and-keyword-derived queries to abstract-and-summary contexts. Second, its multi-disciplinary coverage ensures the fine-tuned model generalises across research domains rather than overfitting to a single subfield. Third, its manageable size of 150 records allows rapid experimentation with training-evaluation splits while still providing sufficient diversity for meaningful benchmarking. The dataset is split deterministically using an 80/20 ratio (120 papers for training, 30 papers for held-out evaluation), ensuring that evaluation is always performed on papers the model has never seen during training, thereby preventing data leakage and providing an honest estimate of generalisation performance.
+
+By combining a large general-purpose benchmark (SQuAD 2.0) with a smaller domain-specific corpus (Summarized Research Papers), the fine-tuning strategy follows a well-established transfer learning paradigm: broad pre-training on diverse data followed by focused adaptation on task-relevant data.
+
+3.5. Grounding Answers and Hallucination Mitigation
+General-purpose Large Language Models (LLMs) suffer from hallucination, generating plausible-sounding but factual ungrounded statements or invalid citations (Ji et al., 2023). Retrieval-Augmented Generation (P. Lewis et al., 2020; Karpukhin et al., 2020) resolves this by dynamically retrieving the top-K relevant document chunks via vector similarity search before passing them to an instruction-tuned LLM (such as LLaMA 3.1 via high-throughput inference backends like Groq).
+
+By enforcing strict system prompt constraints that compel the LLM to generate answers strictly from the provided context chunks, RAG eliminates hallucination, provides transparent source attribution, and guarantees verifiable answers grounded directly in the target research paper.
+
+4. Evaluation Frameworks for RAG and Question Answering Systems
+4.1. Automated Question Answering Evaluation Metrics
+Evaluating the quality of generated answers in RAG pipelines against gold-standard reference answers requires quantitative, multi-perspective evaluation metrics:
+* Exact Match (EM): The percentage of model predictions that match the ground-truth answer string character-for-character after standard text normalization (Rajpurkar et al., 2018).
+* Token-Level F1 Score: The harmonic mean of token-level precision and recall between predicted and reference answers. It rewards partial matches and accommodates minor lexical variations:
+      Precision = |Predicted ∩ Reference| / |Predicted|
+      Recall = |Predicted ∩ Reference| / |Reference|
+      F1 = 2 * (Precision * Recall) / (Precision + Recall)
+* Semantic Vector Similarity: Measures the cosine similarity between the 384-dimensional dense embeddings of the predicted answer and the reference answer:
+      Semantic Similarity = (v_pred · v_ref) / (||v_pred|| * ||v_ref||)
+  Unlike F1, semantic similarity captures conceptual alignment even when the model rephrases the answer using entirely different vocabulary (Zhang et al., 2020).
+
+4.2. Retrieval Quality Metrics
+Evaluating retrieval quality independently of LLM generation is critical for diagnosing RAG bottlenecks. Three complementary metrics are used to assess whether the embedding model surfaces the correct document chunks:
+
+* Recall@K measures the proportion of queries for which at least one relevant document or chunk appears within the top-K retrieved results. For corpus-wide evaluation across multiple research papers, this tests whether the system retrieves chunks belonging to the correct source paper when searching across the entire document collection. A Recall@5 of 1.0 indicates perfect retrieval — every query found its target paper in the top 5 results.
+
+* Mean Reciprocal Rank (MRR) captures not just whether the correct result appears in the top-K, but how highly it is ranked. For each query, the reciprocal rank is 1/r where r is the position of the first relevant result. MRR averages this across all queries:
+      MRR = (1/|Q|) * Σ_i (1 / rank_i)
+  An MRR of 1.0 means the correct result was consistently ranked first.
+
+* Retrieval Margin measures the similarity gap between a query's correct context passage (c_pos) and a top distractor context passage (c_neg):
+      Margin = CosineSimilarity(query, c_pos) - CosineSimilarity(query, c_neg)
+
+Together, these metrics provide a comprehensive view of retrieval performance: Recall@K confirms coverage, MRR confirms ranking quality, and Retrieval Margin confirms the embedding model's ability to segregate relevant information from noise.
+
+5. Conclusion and Core Research Questions
+The literature confirms that integrating PDF parsing, fine-tuned dense vector embeddings (Sentence-Transformers), cloud vector databases (Pinecone), and instruction-tuned generative LLMs (LLaMA 3.1) under a Retrieval-Augmented Generation architecture offers a scalable solution for scientific literature analysis. The availability of curated research paper datasets such as the Kaggle Summarized Research Papers corpus (Tyagi, 2024), combined with established reading comprehension benchmarks (SQuAD 2.0), provides the training and evaluation foundation necessary to empirically validate this architecture.
+
+Based on the theoretical gaps and implementation requirements identified in the literature, this research project addresses the following primary research question:
+* How effectively can an end-to-end RAG architecture utilizing a fine-tuned Sentence-Transformer embedder, Pinecone vector index, and LLaMA 3.1 LLM retrieve relevant paper contexts and generate accurate, source-grounded answers for academic research papers?
+
+To answer this overarching question, the following sub-questions guide system design, empirical implementation, and quantitative evaluation:
+1. To what extent does fine-tuning a lightweight embedding model (all-MiniLM-L6-v2) on SQuAD 2.0 and the Kaggle Summarized Research Papers dataset via MultipleNegativesRankingLoss improve retrieval recall and mean reciprocal rank compared to the base pre-trained model?
+2. How do token-level F1 scores and dense semantic similarity metrics compare when evaluating model-generated answers against ground-truth dataset answers?
+3. How effectively can source-type metadata filtering (PDF vs. Dataset) isolate document domain contexts while maintaining real-time query latency (< 1.5s)?
+
+6. References
+Ji, Z., Lee, N., Frieske, R., Yu, T., Su, D., Xu, Y., Ishii, E., Bang, Y. J., Madotto, A., & Fung, P. (2023). Survey of hallucination in natural language generation. ACM Computing Surveys, 55(12), 1–38. https://doi.org/10.1145/3571730
+
+Johnson, J., Douze, M., & Jégou, H. (2019). Billion-scale similarity search with GPUs. IEEE Transactions on Big Data, 7(3), 535–547. https://doi.org/10.1109/TBDATA.2019.2921572
+
+Karpukhin, V., Oğuz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., & Yih, W.-T. (2020). Dense passage retrieval for open-domain question answering. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP) (pp. 6769–6781). Association for Computational Linguistics. https://doi.org/10.18653/v1/2020.emnlp-main.550
+
+Lewis, M., Liu, Y., Goyal, N., Ghazvininejad, M., Mohamed, A., Levy, O., Stoyanov, V., & Zettlemoyer, L. (2020). BART: Denoising sequence-to-sequence pre-training for natural language generation, translation, and comprehension. In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics (pp. 7871–7880). Association for Computational Linguistics. https://doi.org/10.18653/v1/2020.acl-main.703
+
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rocktäschel, T., Riedel, S., & Kiela, D. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. In H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, & H. Lin (Eds.), Advances in Neural Information Processing Systems 33 (NeurIPS 2020) (pp. 9459–9474). Curran Associates.
+
+Lin, C.-Y. (2004). ROUGE: A package for automatic evaluation of summaries. In Text Summarization Branches Out (pp. 74–81). Association for Computational Linguistics. https://aclanthology.org/W04-1013/
+
+Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., Levy, O., Lewis, M., Zettlemoyer, L., & Stoyanov, V. (2019). RoBERTa: A robustly optimized BERT pretraining approach (arXiv:1907.11692). arXiv. https://doi.org/10.48550/arXiv.1907.11692
+
+Rajpurkar, P., Jia, R., & Liang, P. (2018). Know what you don't know: Unanswerable questions for SQuAD. In Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (pp. 784–789). Association for Computational Linguistics. https://doi.org/10.18653/v1/P18-2124
+
+Reimers, N., & Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (pp. 3982–3992). Association for Computational Linguistics. https://doi.org/10.18653/v1/D19-1410
+
+Tyagi, A. (2024). Summarized research papers [Dataset]. Kaggle. https://www.kaggle.com/datasets/tyagi586/summarized-research-papers
+
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is all you need. In Advances in Neural Information Processing Systems 30 (NeurIPS 2017) (pp. 5998–6008).
+
+Zhang, T., Kishore, V., Wu, F., Weinberger, K. Q., & Artzi, Y. (2020). BERTScore: Evaluating text generation with BERT. In International Conference on Learning Representations (ICLR). https://openreview.net/forum?id=SkeHuCVFDr
+
+
+================================================================================
+4. ANNOTATED CONTENTS LIST FOR THE DISSERTATION
+================================================================================
+
+Chapter 1: Introduction
+  1.1  Background and Motivation
+       — The growing volume of scientific literature and the challenge of
+         information overload facing researchers. The need for automated tools.
+  1.2  Problem Statement
+       — Defines the specific problem: manually reading and extracting knowledge
+         from research papers is slow, error-prone, and cannot scale.
+  1.3  Aims and Objectives
+       — States the project aim (building an end-to-end RAG system) and lists
+         specific, measurable objectives for the system and evaluation.
+  1.4  Research Questions
+       — Presents the primary research question and three supporting sub-questions
+         guiding system design and empirical evaluation.
+  1.5  Report Structure
+       — Brief overview of how the remaining chapters are organised.
+
+Chapter 2: Literature Review
+  2.1  Transformer Architectures in Academic NLP
+       — Reviews the Transformer architecture (Vaswani et al., 2017) and its
+         application to document processing and semantic understanding.
+  2.2  PDF Parsing, Document Structuring, and Text Chunking
+       — Discusses challenges of scientific PDF extraction and the sliding-window
+         chunking strategy used to respect model token limits.
+  2.3  Dense Vector Embeddings and Sentence Transformers
+       — Reviews Sentence-BERT (Reimers & Gurevych, 2019), the all-MiniLM-L6-v2
+         model, and dense passage retrieval as an alternative to keyword matching.
+  2.4  Embedding Model Fine-Tuning via Contrastive Learning
+       — Examines MultipleNegativesRankingLoss, domain adaptation, and the
+         rationale for fine-tuning on research-specific corpora.
+  2.5  Training and Evaluation Datasets
+       — Reviews SQuAD 2.0 and the Kaggle Summarized Research Papers dataset,
+         justifying the selection and 80/20 train/evaluation split strategy.
+  2.6  Cloud Vector Databases and High-Dimensional Indexing
+       — Reviews Pinecone's serverless architecture, metadata-filtered retrieval,
+         and cosine similarity search for high-dimensional vectors.
+  2.7  Grounding Answers and Hallucination Mitigation
+       — Reviews RAG (Lewis et al., 2020), hallucination in LLMs (Ji et al., 2023),
+         and system-prompt-based grounding strategies.
+  2.8  Evaluation Frameworks for RAG Systems
+       — Reviews Exact Match, F1, semantic similarity, Recall@K, MRR, and
+         retrieval margin metrics for assessing system performance.
+
+Chapter 3: System Design and Architecture
+  3.1  Overall System Architecture
+       — Presents the high-level MVC architecture (Model-View-Controller) and
+         the flow from PDF upload through to answer generation.
+  3.2  Technology Stack
+       — Documents Streamlit, PyMuPDF, Sentence-Transformers, Pinecone, Groq,
+         and LLaMA 3.1 with justification for each choice.
+  3.3  PDF Parsing Pipeline
+       — Details the PyMuPDF-based text extraction, figure detection, caption
+         matching, and text cleaning processes.
+  3.4  Text Chunking Strategy
+       — Explains the 500-word chunk size with 100-word overlap and justifies
+         the parameters chosen.
+  3.5  Embedding and Indexing Pipeline
+       — Details how chunks are embedded, stored in Pinecone with metadata
+         (paper_id, chunk_index, source_type), and retrieved.
+  3.6  Question Answering Pipeline
+       — Describes the full query flow: embedding the question, searching
+         Pinecone for top-K chunks, building the LLM prompt, and generating
+         the answer with source attribution.
+  3.7  Dataset Upload and Evaluation Module
+       — Explains the CSV/JSON dataset parser, the evaluation tab, and how
+         F1 and semantic similarity scores are computed in-app.
+  3.8  Session Management and State Persistence
+       — Describes how user sessions are saved and restored automatically.
+
+Chapter 4: Embedding Model Fine-Tuning
+  4.1  Base Model Selection
+       — Justifies the choice of all-MiniLM-L6-v2 as the base model based on
+         its balance of speed, dimensionality, and accuracy.
+  4.2  Dataset Preparation
+       — Details the Kaggle Summarized Research Papers dataset, the schema
+         mapping process, and the deterministic 80/20 train/evaluation split.
+  4.3  Training Configuration
+       — Documents the MultipleNegativesRankingLoss approach, hyperparameters
+         (3 epochs, batch size 16), and the training procedure.
+  4.4  Model Evaluation
+       — Presents the corpus-wide retrieval benchmark: base model vs fine-tuned
+         model on 30 held-out test papers using Recall@5 and MRR.
+
+Chapter 5: Results and Evaluation
+  5.1  Retrieval Performance
+       — Presents quantitative results: base model Recall@5 (23.3%) and MRR
+         (11.6%) vs fine-tuned model Recall@5 (100%) and MRR (100%).
+  5.2  Question Answering Quality
+       — Reports F1 scores and semantic similarity for generated answers
+         evaluated against gold-standard answers from the dataset.
+  5.3  System Performance
+       — Reports query latency, embedding time, and end-to-end response time.
+  5.4  User Interface Evaluation
+       — Discusses usability observations from testing the Streamlit interface.
+  5.5  Discussion
+       — Interprets the results, discusses strengths and limitations of the
+         approach, and compares findings with related work.
+
+Chapter 6: Conclusion and Future Work
+  6.1  Summary of Contributions
+       — Summarises the key achievements: working RAG application, fine-tuned
+         embedder with measurable improvement, evaluation framework.
+  6.2  Limitations
+       — Discusses constraints such as dataset size, single-language support,
+         and dependence on external APIs (Groq, Pinecone).
+  6.3  Future Work
+       — Proposes extensions: multi-paper comparative analysis, citation graph
+         integration, larger training corpora, and local LLM deployment.
+
+References
+       — Full alphabetical list of all cited works in a standardised format.
+
+Appendices
+  A.   Source Code Listings (key modules)
+  B.   Full Evaluation Results Tables
+  C.   Screenshots of the Application Interface
+  D.   User Guide / Installation Instructions
+
+
+================================================================================
+5. WORK PLAN
+================================================================================
+
+All core development and fine-tuning are complete. The remaining work focuses
+on dissertation writing, final testing, and submission preparation.
+
+Timeline: 15 July – 19 August 2026 (5 weeks)
+
+Task                              |  Dates                |  Duration
+──────────────────────────────────|───────────────────────|──────────
+Introduction                      |  15 Jul – 17 Jul      |  3 days
+  Write background, problem       |                       |
+  statement, aims, objectives,    |                       |
+  and research questions.         |                       |
+                                  |                       |
+Literature Review                 |  18 Jul – 22 Jul      |  5 days
+  Refine and expand the existing  |                       |
+  draft. Incorporate supervisor   |                       |
+  feedback and finalise           |                       |
+  references.                     |                       |
+                                  |                       |
+System Design                     |  23 Jul – 27 Jul      |  5 days
+  Document the MVC architecture,  |                       |
+  PDF parsing pipeline, chunking  |                       |
+  strategy, embedding and         |                       |
+  indexing pipeline, QA flow,     |                       |
+  and technology stack with       |                       |
+  diagrams.                       |                       |
+                                  |                       |
+Fine-Tuning                       |  28 Jul – 31 Jul      |  4 days
+  Document base model selection,  |                       |
+  Kaggle dataset preparation,     |                       |
+  MNRL training configuration,    |                       |
+  and model evaluation.           |                       |
+                                  |                       |
+Final Benchmarks                  |  01 Aug – 02 Aug      |  2 days
+  Run final evaluation on base    |                       |
+  and fine-tuned models. Collect  |                       |
+  screenshots and demo            |                       |
+  recordings.                     |                       |
+                                  |                       |
+Results                           |  03 Aug – 07 Aug      |  5 days
+  Write up retrieval performance  |                       |
+  (Recall@5, MRR), QA quality     |                       |
+  (F1, semantic similarity),      |                       |
+  system latency, and discussion. |                       |
+                                  |                       |
+Conclusion                        |  08 Aug – 09 Aug      |  2 days
+  Summarise contributions,        |                       |
+  discuss limitations, and        |                       |
+  propose future work.            |                       |
+                                  |                       |
+Abstract & References             |  10 Aug – 11 Aug      |  2 days
+  Write the abstract. Compile     |                       |
+  and format all references in    |                       |
+  a standardised citation style.  |                       |
+                                  |                       |
+Proofreading & Formatting         |  12 Aug – 13 Aug      |  2 days
+  Proofread the entire document.  |                       |
+  Ensure consistent formatting,   |                       |
+  correct figure numbering, and   |                       |
+  proper appendix structure.      |                       |
+                                  |                       |
+Monitoring and Control            |  14 Aug – 16 Aug      |  3 days
+  Review progress against plan.   |                       |
+  Verify all deliverables are     |                       |
+  complete. Address any gaps or   |                       |
+  issues identified during        |                       |
+  proofreading.                   |                       |
+                                  |                       |
+Review & Final Submission         |  17 Aug – 19 Aug      |  3 days
+  Submit draft to supervisor.     |                       |
+  Incorporate final feedback.     |                       |
+  Prepare PDF and submit          |                       |
+  dissertation on 19 Aug.         |                       |
+
+
+Gantt Chart (Text Format):
+
+Week Starting              | 15 Jul | 22 Jul | 29 Jul | 05 Aug | 12 Aug | 19 Aug |
+---------------------------|--------|--------|--------|--------|--------|--------|
+Introduction               | ████   |        |        |        |        |        |
+Literature Review          |  ████  | ██     |        |        |        |        |
+System Design              |        | ██████ |        |        |        |        |
+Fine-Tuning                |        |        | ████   |        |        |        |
+Final Benchmarks           |        |        |   ██   |        |        |        |
+Results                    |        |        |    ██  | ████   |        |        |
+Conclusion                 |        |        |        |  ████  |        |        |
+Abstract & References      |        |        |        |   ██   |        |        |
+Proofreading & Formatting  |        |        |        |        | ████   |        |
+Monitoring and Control     |        |        |        |        |  ████  |        |
+Review & Final Submission  |        |        |        |        |   ████ | ██     |
+
+================================================================================

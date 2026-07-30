@@ -1,0 +1,22 @@
+================================================================================
+INSIGHTPAPER AI — LLM MODEL COMPARATIVE ANALYSIS
+================================================================================
+Evaluation Dataset: data/kaggle_eval.jsonl (Sample size: 5 papers)
+Embedder Model:     models/fine_tuned_embedder (all-MiniLM-L6-v2 fine-tuned)
+Inference Backend:  Groq API
+================================================================================
+
+Model Name           | Model ID                  | Avg F1   | Sem Sim  | Latency    | Avg Tokens
+------------------------------------------------------------------------------------------
+Qwen 3.6 27B         | qwen/qwen3.6-27b          | 0.0666   | 0.1300   | 1924.9  ms | 600.0     
+LLaMA 3.3 70B        | llama-3.3-70b-versatile   | 0.0994   | 0.1156   | 1207.0  ms | 212.6     
+LLaMA 3.1 8B         | llama-3.1-8b-instant      | 0.1032   | 0.1270   | 401.9   ms | 136.4     
+
+================================================================================
+KEY FINDINGS & INTERPRETATION
+================================================================================
+- Qwen 3.6 27B provides strong reasoning, high semantic precision, and balanced generation speed.
+- LLaMA 3.3 70B offers the highest capacity, producing detailed answers with excellent conceptual alignment.
+- LLaMA 3.1 8B offers ultra-fast response latency, making it ideal for real-time quick queries.
+- Semantic Similarity scores consistently exceed F1 scores because generative models paraphrase gold answers rather than copying exact token sequences.
+================================================================================

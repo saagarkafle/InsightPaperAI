@@ -5,7 +5,8 @@ from dataclasses import asdict
 
 import streamlit as st
 
-from src.llm_qa import answer_question, generate_paper_summary, get_groq_client
+from src.llm_qa import (AVAILABLE_MODELS, DEFAULT_MODEL, answer_question,
+                        generate_paper_summary, get_groq_client)
 from src.pdf_parser import Figure, find_relevant_figures, parse_paper
 from src.rag_pipeline import (chunk_text, get_embedder, get_pinecone_index,
                               make_paper_id, semantic_search, upsert_paper)
@@ -55,10 +56,14 @@ def render_question_turn(prompt: str, active_paper_id: str,
                 source_filter=source_filter,
             )
         with st.spinner("Generating answer..."):
+            # Resolve the selected model display name to its Groq model ID
+            model_name = st.session_state.get("selected_model") or DEFAULT_MODEL
+            model_id = AVAILABLE_MODELS.get(model_name, AVAILABLE_MODELS[DEFAULT_MODEL])
             response = answer_question(
                 question=prompt,
                 retrieved_chunks=chunks,
                 client=st.session_state.groq_client,
+                model=model_id,
             )
 
         st.markdown(response.answer)

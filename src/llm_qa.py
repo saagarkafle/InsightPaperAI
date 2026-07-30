@@ -6,6 +6,18 @@ from dataclasses import dataclass
 import openai
 
 
+# ─────────────────────────────────────────────
+# AVAILABLE MODELS (served via Groq)
+# ─────────────────────────────────────────────
+AVAILABLE_MODELS = {
+    "Qwen 3.6 27B": "qwen/qwen3.6-27b",
+    "LLaMA 3.3 70B": "llama-3.3-70b-versatile",
+    "LLaMA 3.1 8B": "llama-3.1-8b-instant",
+}
+
+DEFAULT_MODEL = "Qwen 3.6 27B"
+
+
 @dataclass
 class QAResponse:
     answer: str
@@ -96,7 +108,7 @@ def answer_question(
     question: str,
     retrieved_chunks: list[dict],
     client: openai.OpenAI,
-    model: str = "llama-3.1-8b-instant",
+    model: str = "qwen/qwen3.6-27b",
     max_tokens: int = 1000,
 ) -> QAResponse:
     """
@@ -141,7 +153,8 @@ Provide a detailed, accurate answer based strictly on the context above."""
 # ─────────────────────────────────────────────
 # PAPER SUMMARY GENERATOR
 # ─────────────────────────────────────────────
-def generate_paper_summary(paper_text: str, client: openai.OpenAI) -> dict:
+def generate_paper_summary(paper_text: str, client: openai.OpenAI,
+                           model: str = "qwen/qwen3.6-27b") -> dict:
     """Generate structured summary of a research paper."""
     prompt = f"""Analyze this research paper and return a JSON object with these exact keys:
 {{
@@ -163,7 +176,7 @@ Paper text (first 3000 words):
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are an expert at analyzing research papers. Return only valid JSON."},
                 {"role": "user", "content": prompt}

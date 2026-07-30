@@ -20,6 +20,8 @@ DEFAULTS = {
     "dataset_id": None,
     "source_mode": "both",  # "pdf", "dataset", or "both"
     "eval_results": None,
+    # LLM model selection
+    "selected_model": None,  # display name; resolved to model ID at call time
 }
 
 
@@ -59,6 +61,7 @@ def save_app_state(st_session_state) -> None:
         "dataset_filename": st_session_state.get("dataset_filename"),
         "dataset_id": st_session_state.get("dataset_id"),
         "source_mode": st_session_state.get("source_mode", "both"),
+        "selected_model": st_session_state.get("selected_model"),
     }
     # Include dataset rows if present (but not huge)
     dataset = st_session_state.get("dataset")
@@ -89,5 +92,6 @@ def load_app_state(st_session_state) -> None:
         st_session_state.dataset_filename = payload.get("dataset_filename")
         st_session_state.dataset_id = payload.get("dataset_id")
         st_session_state.source_mode = payload.get("source_mode", "both")
+        st_session_state.selected_model = payload.get("selected_model")
     except Exception:
         pass

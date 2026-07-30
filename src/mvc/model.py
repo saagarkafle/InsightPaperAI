@@ -8,7 +8,7 @@ import streamlit as st
 from src.dataset_parser import (dataset_to_chunks, make_dataset_id,
                                 parse_csv, parse_json_dataset,
                                 validate_dataset)
-from src.llm_qa import generate_paper_summary
+from src.llm_qa import AVAILABLE_MODELS, DEFAULT_MODEL, generate_paper_summary
 from src.pdf_parser import parse_paper
 from src.rag_pipeline import (chunk_text, make_paper_id, upsert_dataset,
                               upsert_paper)
@@ -63,8 +63,10 @@ class AppModel:
         )
 
         progress("Generating paper summary...")
+        model_name = st.session_state.get("selected_model") or DEFAULT_MODEL
+        model_id = AVAILABLE_MODELS.get(model_name, AVAILABLE_MODELS[DEFAULT_MODEL])
         summary = generate_paper_summary(
-            paper.full_text, st.session_state.groq_client)
+            paper.full_text, st.session_state.groq_client, model=model_id)
 
         st.session_state.papers[paper_id] = {
             "title": paper.title,
