@@ -1,5 +1,6 @@
 # src/llm_qa.py — LLM Question Answering with RAG Context
 import os
+import re
 import time
 from dataclasses import dataclass
 
@@ -108,7 +109,7 @@ def answer_question(
     retrieved_chunks: list[dict],
     client: openai.OpenAI,
     model: str = "qwen/qwen3.6-27b",
-    max_tokens: int = 1000,
+    max_tokens: int = 2048,
 ) -> QAResponse:
     """
     Generate an answer using RAG context + LLM.
@@ -137,6 +138,7 @@ Provide a detailed, accurate answer based strictly on the context above."""
     latency_ms = (time.time() - start) * 1000
 
     answer = response.choices[0].message.content.strip()
+    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
     usage = response.usage
 
     return QAResponse(
@@ -181,21 +183,47 @@ Paper text (first 3000 words):
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=800,
+            max_tokens=4096,
         )
         import json
         raw = response.choices[0].message.content.strip()
+        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
+
+        # Extract JSON object if surrounded by extra text
+        match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+        if match:
+            raw = match.group(0)
+
         return json.loads(raw)
-    except Exception as e:
-        return {
-            "title_detected": "Unknown",
-            "one_liner": "Summary unavailable",
-            "problem": "",
-            "approach": "",
-            "key_findings": [],
-            "limitations": [],
-            "keywords": [],
-            "difficulty": "Unknown",
-            "field": "Unknown"
-        }
+    except Exception as primary_error:
+        # Fallback to llama-3.1-8b-instant if primary model summary generation failed
+        try:
+            fallback_response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are an expert at analyzing research papers. Return only valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=1000,
+            )
+            import json
+            raw_fb = fallback_response.choices[0].message.content.strip()
+            raw_fb = raw_fb.replace("```json", "").replace("```", "").strip()
+            match_fb = re.search(r"\{.*\}", raw_fb, flags=re.DOTALL)
+            if match_fb:
+                raw_fb = match_fb.group(0)
+            return json.loads(raw_fb)
+        except Exception:
+            return {
+                "title_detected": "Unknown",
+                "one_liner": "Summary unavailable",
+                "problem": "",
+                "approach": "",
+                "key_findings": [],
+                "limitations": [],
+                "keywords": [],
+                "difficulty": "Unknown",
+                "field": "Unknown"
+            }

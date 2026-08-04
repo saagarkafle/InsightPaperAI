@@ -3,71 +3,74 @@ InsightPaper AI — Stacks, Tools, and AI used
 Project root: InsightPaper AI
 
 1) Language & Runtime
-- Python 3.9+
-- Virtual environment: venv (used in README)
+- Python 3.9+ (Python 3.13 tested in venv)
+- Virtual environment: venv
 
 2) Web UI / Frontend
 - Streamlit (streamlit>=1.35.0)
 - Custom CSS (src/ui/css.py) + Google Fonts import
+- AI Model Selector dropdowns (landing page & dashboard sidebar)
 
 3) PDF / Document processing
 - PyMuPDF (fitz) (PyMuPDF>=1.24.0)
-- PDF text extraction, figure/image extraction, caption parsing
+- PDF text extraction, figure/image extraction, sliding-window chunking, caption parsing
 
-4) Embeddings
+4) Embeddings & Fine-Tuning
 - sentence-transformers (sentence-transformers>=2.2.0)
-- Model: all-MiniLM-L6-v2 (384-dim)
+- Base Model: all-MiniLM-L6-v2 (384-dim dense vectors)
+- Fine-Tuned Model: `models/fine_tuned_embedder/` fine-tuned on Kaggle Summarized Research Papers dataset (150 papers, 80/20 train/eval split) using MultipleNegativesRankingLoss (MNRL)
 
-5) Vector database / similarity search
+5) Vector Database / Similarity Search
 - Pinecone (pinecone>=3.0.0)
-- Uses Pinecone ServerlessSpec (cosine similarity, 384-dim index)
+- Uses Pinecone ServerlessSpec (cosine similarity, 384-dim index) with metadata filtering (paper_id, chunk_index, source_type)
 
-6) Large Language Model / Generation
-- LLaMA 3.1 (8B) invoked via Groq API
-- Groq integration implemented through the `openai` Python SDK configured with base_url=https://api.groq.com/openai/v1
+6) Large Language Models / Multi-Model Generation
+- Qwen 3.6 27B (`qwen/qwen3.6-27b`) — Default high-capacity reasoning LLM with `<think>` token regex parsing
+- LLaMA 3.1 8B (`llama-3.1-8b-instant`) — Lightweight, ultra-fast LLM (~420 ms latency)
+- Groq API Integration implemented through the `openai` Python SDK configured with base_url=https://api.groq.com/openai/v1
 - openai Python package (openai>=1.30.0)
+- Automatic safety fallback: Qwen 3.6 falls back to LLaMA 3.1 8B if summary token limits are exceeded
 
-7) Optional / Alternate AI SDKs (present in requirements)
-- google-generativeai (Gemini SDK) (google-generativeai>=0.5.0) — optional, GEMINI_API_KEY handled in env but not actively used in code
+7) Evaluation Frameworks & Benchmarks
+- Automated Evaluation Module (`src/evaluation.py`):
+  * Exact Match (EM)
+  * Token-Level F1 Score
+  * Semantic Vector Similarity (384-dim cosine similarity)
+  * LLM-as-a-Judge Evaluation Engine (Zheng et al., 2023): evaluates Faithfulness (0-hallucination), Answer Relevance, and Explanation Completeness on 1–5 scales
+- Benchmark Script: `scripts/compare_models.py` (Outputs comparative evaluation to `output/model_comparison.txt`)
 
-8) Other runtime / helper libraries
-- python-dotenv (python-dotenv>=1.0.0) — .env loading
+8) Documentation & Helper Libraries
+- python-docx — Programmatic Microsoft Word document generation (`Literature_Review.docx`)
+- python-dotenv (python-dotenv>=1.0.0) — `.env` configuration loading
 - base64, re, hashlib, time, dataclasses, typing (standard library usage across code)
 
-9) Project structure & key modules
+9) Project Structure & Key Modules
 - Entry: app.py (Streamlit runner)
-- RAG pipeline: src/rag_pipeline.py (embedding, chunking, Pinecone index management)
-- LLM/Q&A: src/llm_qa.py (Groq/OpenAI client usage, prompts, summary generation)
-- PDF parsing & figures: src/pdf_parser.py (text extraction, figure detection, extraction)
-- Stream helpers / orchestration: src/stream_helpers.py
-- MVC: src/mvc/{controller.py,model.py,view.py}
-- UI components: src/ui/* (tabs, landing, navbar, dashboard, footer)
+- RAG Pipeline: src/rag_pipeline.py (embedding, chunking, Pinecone index management)
+- LLM / Q&A: src/llm_qa.py (Groq/OpenAI client, Qwen 3.6 / LLaMA 3.1 selection, prompt grounding, reasoning token parser)
+- PDF Parsing & Figures: src/pdf_parser.py (text extraction, figure detection, extraction)
+- Evaluation: src/evaluation.py (F1, Semantic Sim, LLM-as-a-Judge)
+- State Manager: src/state.py (Session state persistence & `.insightpaper_state.json` handler)
+- Stream Helpers / Orchestration: src/stream_helpers.py
+- MVC Architecture: src/mvc/{controller.py, model.py, view.py}
+- UI Components: src/ui/* (tabs, landing, navbar, dashboard, footer)
 
-10) External APIs / Keys required
+10) External APIs / Keys Required
 - PINECONE_API_KEY — Pinecone vector DB
-- GROQ_API_KEY — Groq (LLaMA 3.1) via Groq/OpenAI-compatible endpoint
-- GEMINI_API_KEY — Optional (Google Gemini) — present in README and env handling
+- GROQ_API_KEY — Groq (Qwen 3.6 27B and LLaMA 3.1 8B) via Groq/OpenAI-compatible endpoint
+- GEMINI_API_KEY — Optional (Google Gemini)
 
-11) How to run (from README)
-- Create venv, activate
-- pip install -r requirements.txt
-- Set API keys in `.env` or Streamlit secrets
-- Run: `python3 -m streamlit run app.py`
+11) How to Run
+- Create venv, activate: `source venv/bin/activate`
+- Install dependencies: `pip install -r requirements.txt`
+- Set API keys in `.env`
+- Run Streamlit app: `venv/bin/streamlit run app.py`
+- Run model comparison benchmark: `PYTHONPATH=. venv/bin/python scripts/compare_models.py`
 
-12) Notes / Observations
-- Embeddings run locally using sentence-transformers; no paid embedding API required
-- LLM calls are directed to Groq via the OpenAI-compatible client (openai package)
-- Pinecone is used for storage & retrieval of embeddings (serverless index)
-- The repo includes `google-generativeai` in requirements but codebase primarily uses Groq/OpenAI + Pinecone
+12) Technical Summary
+- Embeddings run locally using fine-tuned Sentence-Transformers (`models/fine_tuned_embedder/`)
+- Dual LLM support (Qwen 3.6 27B and LLaMA 3.1 8B) via Groq high-speed inference
+- Retrieval evaluated via Recall@5 (100.0%) and MRR (1.0000)
+- Generation evaluated via F1, Semantic Similarity, and LLM-as-a-Judge (5.00/5.00 Faithfulness, zero-hallucination)
 
-Files referenced while producing this list:
-- app.py
-- requirements.txt
-- README.md
-- src/rag_pipeline.py
-- src/llm_qa.py
-- src/pdf_parser.py
-- src/stream_helpers.py
-- src/ui/
-
-Generated on: 2026-05-28
+Generated on: 2026-07-31

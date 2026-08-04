@@ -317,11 +317,16 @@ def _run_evaluation(eval_rows: list[dict]):
             model=model_id,
         )
 
+        # Build context string for LLM Judge
+        context_text = "\n\n".join([c.get("text", "") for c in chunks])
+
         result = evaluate_single(
             question=question,
             gold_answer=gold_answer,
             model_answer=response.answer,
             embedder=st.session_state.embedder,
+            context=context_text,
+            client=st.session_state.groq_client,
         )
         results.append(result)
 
@@ -350,10 +355,15 @@ def _display_eval_results(eval_data: dict):
         "<span class='section-label'>Aggregate Metrics</span>",
         unsafe_allow_html=True)
 
-    mc1, mc2, mc3 = st.columns(3)
+    mc1, mc2, mc3, mc4 = st.columns(4)
     mc1.metric("Mean F1 Score", f"{aggregate.get('mean_f1', 0):.2%}")
-    mc2.metric("Mean Semantic Similarity", f"{aggregate.get('mean_semantic', 0):.2%}")
-    mc3.metric("Questions Evaluated", aggregate.get("count", 0))
+    mc2.metric("Mean Semantic Sim", f"{aggregate.get('mean_semantic', 0):.2%}")
+    if "mean_judge_overall" in aggregate:
+        mc3.metric("LLM Judge Rating", f"{aggregate.get('mean_judge_overall', 0):.1f} / 5.0")
+        mc4.metric("Faithfulness (0-hallucination)", f"{aggregate.get('mean_faithfulness', 0):.1f} / 5.0")
+    else:
+        mc3.metric("Questions Evaluated", aggregate.get("count", 0))
+        mc4.metric("Evaluation Status", "Complete")
 
     # Per-question results
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
@@ -367,6 +377,38 @@ def _display_eval_results(eval_data: dict):
 
         f1_class = "eval-score-good" if f1 >= 0.5 else ("eval-score-mid" if f1 >= 0.25 else "eval-score-low")
         sem_class = "eval-score-good" if sem >= 0.7 else ("eval-score-mid" if sem >= 0.5 else "eval-score-low")
+
+        judge_html = ""
+        if "llm_judge" in r:
+            j = r["llm_judge"]
+            judge_html = f"""
+            <div style="margin-top:6px; font-size:12px; color:var(--text-secondary);">
+                <strong>🤖 LLM Judge:</strong> {j.get('overall_score', 0):.1f}/5.0
+                &nbsp;|&nbsp; Faithfulness: <strong>{j.get('faithfulness', 0)}/5</strong>
+                &nbsp;|&nbsp; Relevance: <strong>{j.get('relevance', 0)}/5</strong>
+                &nbsp;|&nbsp; Completeness: <strong>{j.get('completeness', 0)}/5</strong><br/>
+                <span style="font-style:italic; color:var(--text-muted);">{html_mod.escape(j.get('reasoning', ''))}</span>
+            </div>
+            """
+
+        with st.expander(f"Q{i+1}: {r['question'][:80]}...", expanded=(i == 0)):
+            st.markdown(f"""
+            <div style="margin-bottom: 8px;">
+                <strong>Question:</strong> {html_mod.escape(r['question'])}
+            </div>
+            <div style="margin-bottom: 8px;">
+                <strong>Gold Answer:</strong> <span style="color: var(--text-secondary);">{html_mod.escape(r['gold_answer'])}</span>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <strong>Model Answer:</strong> {html_mod.escape(r['model_answer'])}
+            </div>
+            <div style="display: flex; gap: 16px; font-size: 13px;">
+                <span>F1 Score: <span class="{f1_class}">{f1:.4f}</span></span>
+                <span>Semantic Sim: <span class="{sem_class}">{sem:.4f}</span></span>
+            </div>
+            {judge_html}
+            """, unsafe_allow_html=True)
+
 
         safe_q = html_mod.escape(r["question"][:150])
         safe_gold = html_mod.escape(r["gold_answer"][:200])
