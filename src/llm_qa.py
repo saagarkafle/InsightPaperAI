@@ -11,7 +11,6 @@ import openai
 # ─────────────────────────────────────────────
 AVAILABLE_MODELS = {
     "Qwen 3.6 27B": "qwen/qwen3.6-27b",
-    "LLaMA 3.3 70B": "llama-3.3-70b-versatile",
     "LLaMA 3.1 8B": "llama-3.1-8b-instant",
 }
 

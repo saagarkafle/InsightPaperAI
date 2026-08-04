@@ -18,11 +18,31 @@ def render_landing():
             <div class="hero-title">Ask questions about any paper<br/><span class="hero-highlight">with AI-powered analysis</span></div>
             <div class="hero-copy">Upload a PDF, let the app extract text and figures, then ask grounded questions with source citations and semantic search.</div>
             <div class="hero-actions"><span class="chip">📄 Upload PDF</span><span class="chip">🔍 Semantic search</span><span class="chip">🖼 Figure extraction</span></div>
-            <div class="hero-badge-row"><span class="pill-tag">Pinecone</span><span class="pill-tag">Groq</span><span class="pill-tag">PyMuPDF</span><span class="pill-tag">LLaMA 3.1</span></div>
+            <div class="hero-badge-row"><span class="pill-tag">Pinecone</span><span class="pill-tag">Groq</span><span class="pill-tag">PyMuPDF</span><span class="pill-tag">Qwen 3.6 / LLaMA 3.1</span></div>
         </div>
         """, unsafe_allow_html=True)
 
     with hero_right:
+        # ─── Model Selector ───
+        from src.llm_qa import AVAILABLE_MODELS, DEFAULT_MODEL
+        model_names = list(AVAILABLE_MODELS.keys())
+        current_model = st.session_state.get("selected_model") or DEFAULT_MODEL
+        try:
+            model_idx = model_names.index(current_model)
+        except ValueError:
+            model_idx = 0
+
+        st.markdown("<div style='font-size:13px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;'>🤖 Select AI Model</div>", unsafe_allow_html=True)
+        selected_model = st.selectbox(
+            "Select AI Model",
+            options=model_names,
+            index=model_idx,
+            key="landing_model_select",
+            label_visibility="collapsed",
+        )
+        st.session_state.selected_model = selected_model
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
         # ─── PDF Upload Card ───
         st.markdown("""
         <div class="upload-card">
