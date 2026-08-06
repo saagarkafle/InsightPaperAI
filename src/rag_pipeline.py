@@ -32,12 +32,14 @@ def get_embedder(model_name_or_path: Optional[str] = None):
     return _model
 
 
-def embed_texts(texts: list, embedder) -> list:
+def embed_texts(texts: list[str], embedder) -> list[list[float]]:
+    """Encode a batch of text strings into embedding vectors."""
     vectors = embedder.encode(texts, show_progress_bar=False, batch_size=32)
     return vectors.tolist()
 
 
-def embed_query(query: str, embedder) -> list:
+def embed_query(query: str, embedder) -> list[float]:
+    """Encode a single query string into an embedding vector."""
     vector = embedder.encode([query], show_progress_bar=False)
     return vector[0].tolist()
 
@@ -76,7 +78,8 @@ def get_pinecone_index(index_name: str = "research-papers"):
     return pc.Index(index_name)
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> list:
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> list[str]:
+    """Split text into overlapping word-level chunks for embedding."""
     words = text.split()
     chunks = []
     start = 0

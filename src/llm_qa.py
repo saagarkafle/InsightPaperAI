@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import openai
 
+from src.llm_utils import parse_json_response, strip_think_tags
+
 
 # ─────────────────────────────────────────────
 # AVAILABLE MODELS (served via Groq)
@@ -16,6 +18,12 @@ AVAILABLE_MODELS = {
 }
 
 DEFAULT_MODEL = "Qwen 3.6 27B"
+
+
+def resolve_model_id(display_name: str | None = None) -> str:
+    """Resolve a human-readable model display name to its Groq model ID."""
+    name = display_name or DEFAULT_MODEL
+    return AVAILABLE_MODELS.get(name, AVAILABLE_MODELS[DEFAULT_MODEL])
 
 
 @dataclass
@@ -137,8 +145,7 @@ Provide a detailed, accurate answer based strictly on the context above."""
     )
     latency_ms = (time.time() - start) * 1000
 
-    answer = response.choices[0].message.content.strip()
-    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+    answer = strip_think_tags(response.choices[0].message.content)
     usage = response.usage
 
     return QAResponse(
@@ -185,17 +192,7 @@ Paper text (first 3000 words):
             temperature=0.1,
             max_tokens=4096,
         )
-        import json
-        raw = response.choices[0].message.content.strip()
-        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-        raw = raw.replace("```json", "").replace("```", "").strip()
-
-        # Extract JSON object if surrounded by extra text
-        match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-        if match:
-            raw = match.group(0)
-
-        return json.loads(raw)
+        return parse_json_response(response.choices[0].message.content)
     except Exception as primary_error:
         # Fallback to llama-3.1-8b-instant if primary model summary generation failed
         try:
@@ -208,13 +205,7 @@ Paper text (first 3000 words):
                 temperature=0.1,
                 max_tokens=1000,
             )
-            import json
-            raw_fb = fallback_response.choices[0].message.content.strip()
-            raw_fb = raw_fb.replace("```json", "").replace("```", "").strip()
-            match_fb = re.search(r"\{.*\}", raw_fb, flags=re.DOTALL)
-            if match_fb:
-                raw_fb = match_fb.group(0)
-            return json.loads(raw_fb)
+            return parse_json_response(fallback_response.choices[0].message.content)
         except Exception:
             return {
                 "title_detected": "Unknown",

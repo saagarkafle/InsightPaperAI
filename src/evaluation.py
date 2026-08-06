@@ -1,6 +1,10 @@
 # src/evaluation.py — Automatic Evaluation using Dataset Gold Answers & LLM-as-a-Judge
+import json
 import re
+
 import numpy as np
+
+from src.llm_utils import parse_json_response
 
 
 def _tokenize(text: str) -> set[str]:
@@ -115,14 +119,7 @@ Return ONLY a valid JSON object with these keys:
             temperature=0.1,
             max_tokens=300,
         )
-        import json
-        raw = response.choices[0].message.content.strip()
-        raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-        if match:
-            raw = match.group(0)
-        data = json.loads(raw)
+        data = parse_json_response(response.choices[0].message.content)
         return {
             "faithfulness": int(data.get("faithfulness", 3)),
             "relevance": int(data.get("relevance", 3)),
