@@ -138,6 +138,32 @@ def render_landing():
             "Upload PDF", type=["pdf"], label_visibility="collapsed",
             key="landing_pdf_upload")
 
+        # ─── Uploaded File Feedback Card ───
+        if uploaded_pdf:
+            file_size_mb = uploaded_pdf.size / (1024 * 1024)
+            st.markdown(f"""
+            <div style="
+                background: rgba(29, 185, 84, 0.14);
+                border: 1px solid #1DB954;
+                border-radius: 10px;
+                padding: 10px 14px;
+                margin-top: 8px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            ">
+                <span style="font-size: 18px;">✅</span>
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="font-weight: 700; font-size: 13px; color: #FFFFFF; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                        {uploaded_pdf.name}
+                    </div>
+                    <div style="font-size: 11px; color: #1ED760; margin-top: 2px;">
+                        Ready to process • {file_size_mb:.2f} MB
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         # ─── Process Button (always visible, disabled until paper is uploaded) ───
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         process_requested = st.button(
