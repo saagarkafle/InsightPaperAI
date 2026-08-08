@@ -224,13 +224,38 @@ def render_dashboard():
     - Narrow left sidebar: controls, stats, source toggle
     - Wide right main area: paper overview, tab content
     """
-    # Smooth scroll to top when dashboard opens
+    # Smooth scroll to top when dashboard opens (multi-target for all Streamlit versions)
     import streamlit.components.v1 as components
     components.html("""
     <script>
-        setTimeout(function() {
-            window.parent.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
+        function forceScrollTop() {
+            try {
+                var p = window.parent;
+                var doc = p.document;
+                var targets = [
+                    p,
+                    doc.documentElement,
+                    doc.body,
+                    doc.querySelector('section.main'),
+                    doc.querySelector('.main'),
+                    doc.querySelector('[data-testid="stMain"]'),
+                    doc.querySelector('[data-testid="stAppViewContainer"]')
+                ];
+                targets.forEach(function(el) {
+                    if (el) {
+                        if (typeof el.scrollTo === 'function') {
+                            el.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                        }
+                        el.scrollTop = 0;
+                    }
+                });
+            } catch(e) {}
+        }
+        forceScrollTop();
+        setTimeout(forceScrollTop, 50);
+        setTimeout(forceScrollTop, 200);
+        setTimeout(forceScrollTop, 500);
+        setTimeout(forceScrollTop, 1000);
     </script>
     """, height=0)
 
