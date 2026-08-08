@@ -196,9 +196,9 @@ Vector Database & Pinecone & 3.0.0+ & Serverless cloud-native HNSW vector store 
 \hline
 LLM Inference & Groq API & OpenAI-compatible & LPU-accelerated inference delivering 800+ tokens per second, significantly outperforming standard GPU-based APIs for real-time QA. \\
 \hline
-Primary LLM & Qwen 3.6 27B & qwen3.6-27b & 27-billion parameter model with structured reasoning. Highest LLM Judge score (5.00/5.00). Best for deep analytical queries. \\
+Primary LLM & Qwen 3.6 27B & qwen3.6-27b & 27-billion parameter model. Selected as default for Qwen 3.6 27B (Deep Analysis) for complex queries and 300–500 word executive summaries. \\
 \hline
-Secondary LLM & LLaMA 3.1 8B & llama-3.1-8b-instant & Lightweight 8B model delivering 421ms average latency. Preferred for interactive real-time query sessions. \\
+Secondary LLM & LLaMA 3.1 8B & llama-3.1-8b-instant & Lightweight 8B model. Selected for LLaMA 3.1 8B (Fast Inference) delivering ~400ms average latency for rapid iterative Q\&A. \\
 \hline
 Evaluation & Custom evaluation.py & — & Token F1, Semantic Similarity, and LLM-as-a-Judge implemented natively in src/evaluation.py. \\
 \hline

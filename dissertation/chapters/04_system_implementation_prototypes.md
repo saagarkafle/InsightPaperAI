@@ -2,7 +2,7 @@
 \chapter{System Implementation and Prototypes}
 
 \section{Introduction}
-This chapter describes the practical realisation of InsightPaper AI across all system components. It moves from high-level architectural decisions established in Chapter 3 to specific code integration, API middleware, and the functional web interface prototypes. Three annotated UI prototypes are presented, followed by the session state management strategy and dataset evaluation pipeline.
+This chapter describes the practical realisation of InsightPaper AI across all system components. It moves from high-level architectural decisions established in Chapter 3 to specific code integration, API middleware, and the functional web interface prototypes. Four annotated UI prototypes are presented, followed by the session state management strategy and dataset evaluation pipeline.
 
 \section{System Integration and Component Realisation}
 
@@ -22,52 +22,69 @@ The RAG pipeline in src/rag\_pipeline.py handles both the indexing phase at uplo
 \subsection{Groq API Middleware and LLM Routing}
 LLM inference is handled in src/llm\_qa.py, which uses the openai Python SDK configured against Groq's OpenAI-compatible endpoint at https://api.groq.com/openai/v1. The model identifier is passed dynamically based on the user's selection stored in st.session\_state.selected\_model.
 \newline \newline A critical implementation detail for Qwen 3.6 27B is the removal of think chain-of-thought reasoning blocks from the raw response using a compiled regular expression pattern, ensuring only the final cleaned answer is displayed to the user.
-\newline \newline A safety fallback mechanism was implemented for the paper summarisation feature: if Qwen 3.6 27B raises a token-limit exception during summarisation of unusually long papers, the system automatically retries the request using LLaMA 3.1 8B, preventing the summary panel from returning an empty or error state.
+\newline \newline A token payload safeguard was implemented to prevent Groq API rate-limit exceptions: prompt text excerpts for summary generation are bounded to 1,800 words and completion max\_tokens set to 1,000, requesting ~3,300 tokens per call and remaining strictly beneath Groq's 6,000 Tokens Per Minute (TPM) limit. Additionally, a safety fallback mechanism automatically retries requests using LLaMA 3.1 8B if primary LLM calls fail.
 
-\begin{figure}
+\begin{figure}[h]
+  \centering
   \includegraphics[width=0.9\linewidth]{figures/4.1.png}
   \caption{Groq API Middleware and Model Routing Architecture}
   \label{fig:routing}
 \end{figure}
 
 \section{Prototype Implementation and Web UI Screenshots}
-The following subsections present annotated screenshots of each major interface prototype. All prototypes were implemented in Streamlit with a custom CSS stylesheet injected via src/ui/css.py and Google Fonts for typographic consistency.
+The following subsections present annotated screenshots of each major interface prototype. All prototypes were implemented in Streamlit with a custom CSS stylesheet injected via src/ui/css.py, featuring a Spotify-inspired Dark Theme design system (\#121212 dark background, \#181818 card containers, \#242424 section cards, and \#1DB954 Spotify Green accent pill buttons and highlight tags).
 
 \subsection{Prototype 1: Document Upload and Model Selection Interface}
-The landing page is the first screen presented to users upon launching InsightPaper AI. It features a clean centred layout with the application logo, an AI Model Selection dropdown, and a PDF file uploader. The model selection dropdown defaults to Qwen 3.6 27B and allows the user to switch to LLaMA 3.1 8B before processing begins.
-\newline \newline Upon selecting a PDF and clicking Process Paper, a progress spinner is displayed while the parsing, chunking, embedding, and Pinecone indexing pipeline runs. A status message confirms successful indexing before the dashboard is rendered. Below as shown in Figure \ref{fig:proto1} is the landing page interface.
+The landing page is the first screen presented to users upon launching InsightPaper AI. It features a clean centred layout with the application logo, an AI Model Selection dropdown, a unified PDF dropzone card, and an automated step-by-step workflow guide. The model selector offers two clear options: Qwen 3.6 27B (Deep Analysis) for complex queries and LLaMA 3.1 8B (Fast Inference) for rapid iterative Q\&A, paired with a dynamic hint card explaining when to choose each model.
+\newline \newline When a PDF is selected, an instant file upload confirmation badge displays the file name, size in MB, and a green readiness state. Upon clicking Process Paper, a bidirectional JavaScript smooth-scroll script automatically scrolls the viewport down to the live status widget (st.status) showing parsing, chunking, embedding, and indexing progress, before smoothly auto-scrolling back to top: 0 when the dashboard renders. Below as shown in Figure \ref{fig:proto1} is the landing page interface.
 
-\begin{figure}
+\begin{figure}[h]
+  \centering
   \includegraphics[width=0.9\linewidth]{figures/4.2.png}
   \caption{Prototype 1 — Landing Page: PDF Upload and AI Model Selection Interface}
   \label{fig:proto1}
 \end{figure}
 
-The key components visible in this interface are: the AI Model Selection dropdown offering Qwen 3.6 27B and LLaMA 3.1 8B, the PDF file uploader with drag-and-drop support, the Process Paper action button, and the processing progress spinner showing step-by-step status messages as each pipeline stage completes.
+The key components visible in this interface are: the AI Model Selection dropdown offering Qwen 3.6 27B (Deep Analysis) and LLaMA 3.1 8B (Fast Inference); the dynamic model selection guide hint; the unified PDF file uploader with instant file confirmation badge; the Process Paper action button; and the automated 6-step pipeline workflow panel.
 
-\subsection{Prototype 2: Main Dashboard and Interactive Q\&A Interface}
-After successful processing, the application transitions to the main dashboard. The layout follows a three-column structure: a left panel with navigation tabs for Ask Questions, Figures, Search, and Stats, a central panel displaying the paper title and structured summary cards, and a right sidebar for model toggling and source type switching.
-\newline \newline The Ask Questions tab contains the core RAG question-answering interface. A chat input field accepts natural language queries, and responses are rendered in a scrollable chat thread. Each AI response optionally includes an expandable Source Citations section displaying the exact retrieved chunks from Pinecone, including their source page numbers, providing full transparency on the grounding of each answer. Below as shown in Figure \ref{fig:proto2} is the main dashboard Q\&A interface.
+\subsection{Prototype 2: Main Dashboard with Summary}
+After successful processing, the application transitions to the main dashboard. The central panel presents the primary document summary overview: paper title, difficulty rating, field tag, problem statement, approach, and key findings.
+\newline \newline The overview card includes a dedicated Read Elaborated Summary (300–500 words) button, allowing users to launch an in-depth modal dialog. Below as shown in Figure \ref{fig:proto2} is the main dashboard summary interface.
 
-\begin{figure}
+\begin{figure}[h]
+  \centering
   \includegraphics[width=0.9\linewidth]{figures/4.3.png}
-  \caption{Prototype 2 — Main Dashboard: RAG Question-Answering Interface with Source Citations}
+  \caption{Prototype 2 — Main Dashboard: Paper Overview and Structured Summary Interface}
   \label{fig:proto2}
 \end{figure}
 
-The key components visible in this interface are: the structured paper summary cards showing problem, method, findings, and keywords; the navigation tabs for different dashboard sections; the chat input field for natural language queries; the LLM-generated grounded answer; the expandable source citations panel showing chunk text and page number; and the sidebar model switcher allowing active session model toggling.
+The key components visible in this interface are: the structured paper summary overview card; the Read Elaborated Summary modal trigger button; the key findings list; the topic tags panel; the vertical navigation tabbar; and the right sidebar model selector.
 
-\subsection{Prototype 3: Automated Evaluation and Metric Visualiser}
-When an evaluation dataset in CSV or JSON format containing question and answer columns is uploaded alongside a PDF, a dedicated Evaluate tab becomes active on the dashboard. This tab presents the automated quantitative benchmarking interface.
-\newline \newline The user triggers evaluation with a single button click. The system iterates through each Q\&A pair in the dataset, submits each question through the full RAG pipeline, and computes Token F1, Semantic Similarity, and LLM-as-a-Judge scores for each generated answer. Results are displayed in a results table alongside aggregate averages. Below as shown in Figure \ref{fig:proto3} is the evaluation dashboard interface.
+\subsection{Prototype 3: Q\&A Interface}
+The Ask Questions tab contains the core interactive Retrieval-Augmented Generation question-answering interface. It allows users to ask natural language questions about the indexed paper and receive precise, grounded answers generated by the active LLM.
+\newline \newline A chat input field accepts user queries, rendering responses in a multi-turn scrollable chat thread. Each AI response includes an expandable Source Citations panel displaying the exact retrieved text chunks from Pinecone, complete with cosine relevance scores, source type indicators, and source page numbers, providing full transparency on answer grounding. Below as shown in Figure \ref{fig:proto3} is the RAG Q\&A interface.
 
-\begin{figure}
+\begin{figure}[h]
+  \centering
   \includegraphics[width=0.9\linewidth]{figures/4.4.png}
-  \caption{Prototype 3 — Evaluation Dashboard: Automated Benchmark Scoring Interface}
+  \caption{Prototype 3 — Interactive RAG Question-Answering Interface with Source Citations}
   \label{fig:proto3}
 \end{figure}
 
-The key components visible in this interface are: the dataset upload panel for CSV or JSON files; the Run Evaluation action button; the per-question results table showing Token F1, Semantic Similarity, and LLM Judge score for each entry; the aggregate average scores panel; and the LLM-as-a-Judge individual verdict display showing Faithfulness, Relevance, and Completeness ratings.
+The key components visible in this interface are: the chat input field for natural language queries; the multi-turn chat conversation thread; the LLM-generated grounded answer; the expandable source citations panel showing chunk text, relevance score, and page number; and the active session model indicator.
+
+\subsection{Prototype 4: Detailed Executive Summary Modal Interface}
+The central summary panel includes a dedicated Read Elaborated Summary (300–500 words) action button. Clicking this button opens an interactive modal dialog window (render\_elaborated\_summary\_modal), presenting a comprehensive executive research breakdown.
+\newline \newline The modal window features a Spotify-dark header card displaying the paper title, academic field tag, and difficulty badge. The summary text is parsed into four distinct executive breakdown cards: Core Problem \& Research Context (🎯), Proposed Methodology \& Key Innovations (⚙️), Critical Findings \& Benchmarks (📈), and Broader Impact \& Future Directions (🔮). Each section card is styled with a left 4px Spotify Green accent border (\#1DB954) and glowing green section headers (\#1ED760). A stats footer displays total word count, 100\% grounding verification, and the active LLM engine. Below as shown in Figure \ref{fig:proto4} is the Detailed Executive Summary Modal interface.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/4.5.png}
+  \caption{Prototype 4 — Detailed Executive Summary Modal Interface}
+  \label{fig:proto4}
+\end{figure}
+
+The key components visible in this interface are: the modal header banner with paper title and metadata tags; the four structured executive breakdown cards with Spotify Green accent borders; the icon-anchored section titles; the scrollable dark summary container; and the executive stats footer displaying word count, grounding status, and active LLM model.
 
 \section{Session Management and State Persistence}
 
@@ -87,7 +104,9 @@ processed\_paper\_id & String & UUID of the currently active indexed document \\
 \hline
 paper\_metadata & Dict & Cached word count, page count, and title \\
 \hline
-paper\_summary & Dict & Cached structured summary including problem, method, findings, and keywords \\
+paper\_summary & Dict & Cached structured summary including problem, method, findings, keywords, and 300–500 word elaborated summary \\
+\hline
+full\_text & String & Full extracted normalized plain-text body of the PDF \\
 \hline
 chat\_history & List[Dict] & Full multi-turn conversation history with role and content per message \\
 \hline
@@ -123,11 +142,12 @@ The evaluation pipeline iterates over all Q\&A pairs and for each entry complete
 
 Results are aggregated into a summary table and displayed in the Evaluate tab dashboard. Below as shown in Figure \ref{fig:evalarch} is the automated benchmark scoring pipeline architecture.
 
-\begin{figure}
-  \includegraphics[width=0.9\linewidth]{figures/4.5.png}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/4.6.png}
   \caption{Automated Benchmark Scoring Pipeline Architecture}
   \label{fig:evalarch}
 \end{figure}
 
 \section{Chapter Summary}
-This chapter presented the practical implementation of InsightPaper AI across all system components. The MVC codebase structure was demonstrated through key module implementations including the Groq API model router, Pinecone RAG pipeline, and Streamlit session state manager. Three annotated UI prototype screenshots illustrated the Document Upload interface in Prototype 1, the interactive RAG Question-Answering dashboard in Prototype 2, and the automated Evaluation module in Prototype 3. The dataset evaluation pipeline and cross-session state persistence mechanisms were also detailed. Chapter 5 addresses the critical research contribution of this project: the domain-specific fine-tuning of the SentenceTransformer embedding model.
+This chapter presented the practical implementation of InsightPaper AI across all system components. The MVC codebase structure was demonstrated through key module implementations including the Groq API model router, Pinecone RAG pipeline, and Streamlit session state manager. Four annotated UI prototype screenshots illustrated the Document Upload and Model Selection interface in Prototype 1, the Main Dashboard with Summary in Prototype 2, the interactive Q\&A Interface in Prototype 3, and the Detailed Executive Summary Modal in Prototype 4. The dataset evaluation pipeline and cross-session state persistence mechanisms were also detailed. Chapter 5 addresses the critical research contribution of this project: the domain-specific fine-tuning of the SentenceTransformer embedding model.
