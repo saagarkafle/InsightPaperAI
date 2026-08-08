@@ -75,6 +75,7 @@ class AppModel:
             "vectors_upserted": vector_count,
             "summary": summary,
             "figures": paper.figures,
+            "full_text": paper.full_text,
         }
         st.session_state.active_paper_id = paper_id
         st.session_state.messages = []
