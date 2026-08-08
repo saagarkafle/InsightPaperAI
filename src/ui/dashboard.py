@@ -54,6 +54,16 @@ def render_dashboard():
     - Narrow left sidebar: controls, stats, source toggle
     - Wide right main area: paper overview, tab content
     """
+    # Smooth scroll to top when dashboard opens
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+        setTimeout(function() {
+            window.parent.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+    </script>
+    """, height=0)
+
     reset_requested = False
     active_id = st.session_state.active_paper_id
     active_paper = st.session_state.papers.get(active_id, {})

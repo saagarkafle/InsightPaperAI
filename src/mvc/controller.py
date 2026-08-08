@@ -40,6 +40,21 @@ class AppController:
     def _handle_processing(self, uploaded_pdf, uploaded_dataset) -> None:
         try:
             st.session_state.processing = True
+            st.markdown("<div id='processing-status-target'></div>", unsafe_allow_html=True)
+            import streamlit.components.v1 as components
+            components.html("""
+            <script>
+                setTimeout(function() {
+                    var target = window.parent.document.getElementById('processing-status-target');
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        window.parent.scrollTo({ top: window.parent.document.body.scrollHeight, behavior: 'smooth' });
+                    }
+                }, 100);
+            </script>
+            """, height=0)
+
             with st.status("Processing uploads...", expanded=True) as status:
                 # Process PDF if provided
                 if uploaded_pdf:
