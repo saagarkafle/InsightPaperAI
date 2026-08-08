@@ -13,11 +13,11 @@ from src.llm_utils import parse_json_response, strip_think_tags
 # AVAILABLE MODELS (served via Groq)
 # ─────────────────────────────────────────────
 AVAILABLE_MODELS = {
-    "Qwen 3.6 27B": "qwen/qwen3.6-27b",
-    "LLaMA 3.1 8B": "llama-3.1-8b-instant",
+    "Qwen 3.6 27B (Deep Analysis)": "qwen/qwen3.6-27b",
+    "LLaMA 3.1 8B (Fast Inference)": "llama-3.1-8b-instant",
 }
 
-DEFAULT_MODEL = "Qwen 3.6 27B"
+DEFAULT_MODEL = "Qwen 3.6 27B (Deep Analysis)"
 
 
 def resolve_model_id(display_name: str | None = None) -> str:
