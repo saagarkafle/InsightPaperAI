@@ -3,6 +3,51 @@ import html as html_mod
 import streamlit as st
 
 
+@st.dialog("📄 Detailed Research Paper Summary", width="large")
+def render_elaborated_summary_modal(active_paper):
+    title = active_paper.get("title", "Research Paper")
+    paper_text = active_paper.get("raw_text", "")
+    summary_dict = active_paper.get("summary", {})
+
+    st.markdown(f"### {html_mod.escape(title)}")
+    st.caption("AI-generated 300 to 500 word comprehensive executive breakdown")
+    st.markdown("---")
+
+    elaborated = summary_dict.get("elaborated_summary")
+    if not elaborated and paper_text:
+        with st.spinner("Generating 300–500 word detailed executive summary..."):
+            try:
+                from src.llm_qa import generate_elaborated_summary, get_groq_client, resolve_model_id
+                client = get_groq_client()
+                model_id = resolve_model_id(st.session_state.get("selected_model"))
+                elaborated = generate_elaborated_summary(paper_text, client, model_id)
+                summary_dict["elaborated_summary"] = elaborated
+                active_paper["summary"] = summary_dict
+            except Exception as e:
+                elaborated = f"Error generating summary: {e}"
+
+    if elaborated:
+        st.markdown(f"""
+        <div style="
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 12px;
+            padding: 22px;
+            color: #FFFFFF;
+            line-height: 1.7;
+            font-size: 14px;
+            max-height: 60vh;
+            overflow-y: auto;
+        ">
+            {elaborated}
+        </div>
+        """, unsafe_allow_html=True)
+        word_count = len(elaborated.split())
+        st.markdown(f"<div style='margin-top:12px; font-size:12px; color:#A7A7A7;'>📊 Summary length: <strong>~{word_count} words</strong></div>", unsafe_allow_html=True)
+    else:
+        st.info("Full paper text is needed to generate the elaborated summary.")
+
+
 def render_dashboard():
     """
     Render the dashboard screen with a two-column layout:
@@ -81,6 +126,10 @@ def render_dashboard():
             </div>
             """, unsafe_allow_html=True)
 
+            # Button to open 300-500 word elaborated summary modal
+            if st.button("📖 Read Elaborated Summary (300–500 words)", key="btn_elaborated_modal", use_container_width=True):
+                render_elaborated_summary_modal(active_paper)
+
             if keywords_html:
                 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
                 st.markdown(f"""
@@ -123,18 +172,17 @@ def render_dashboard():
 
     # ─── Right Sidebar ───
     with dashboard_right:
-        # ─── Model Selector ───
-        from src.llm_qa import AVAILABLE_MODELS, DEFAULT_MODEL
-        model_names = list(AVAILABLE_MODELS.keys())
-        current_model = st.session_state.get("selected_model") or DEFAULT_MODEL
-        try:
-            model_idx = model_names.index(current_model)
-        except ValueError:
+        # ─── Model Selector (Concise Dashboard Labels) ───
+        dashboard_model_names = ["Qwen (Deep Analysis)", "LLaMA (Fast Inference)"]
+        current_model = st.session_state.get("selected_model", "")
+        if "llama" in str(current_model).lower():
+            model_idx = 1
+        else:
             model_idx = 0
 
         selected_model = st.selectbox(
             "LLM Model",
-            options=model_names,
+            options=dashboard_model_names,
             index=model_idx,
             key="dashboard_model_select",
         )
@@ -163,4 +211,3 @@ def render_dashboard():
             "Start new session", use_container_width=True)
 
     return tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate, reset_requested
-
