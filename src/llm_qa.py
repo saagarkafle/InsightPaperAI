@@ -15,8 +15,6 @@ from src.llm_utils import parse_json_response, strip_think_tags
 AVAILABLE_MODELS = {
     "Qwen 3.6 27B (Deep Analysis)": "qwen/qwen3.6-27b",
     "LLaMA 3.1 8B (Fast Inference)": "llama-3.1-8b-instant",
-    "Qwen (Deep Analysis)": "qwen/qwen3.6-27b",
-    "LLaMA (Fast Inference)": "llama-3.1-8b-instant",
 }
 
 DEFAULT_MODEL = "Qwen 3.6 27B (Deep Analysis)"
@@ -25,13 +23,9 @@ DEFAULT_MODEL = "Qwen 3.6 27B (Deep Analysis)"
 def resolve_model_id(display_name: str | None = None) -> str:
     """Resolve a human-readable model display name to its Groq model ID."""
     name = display_name or DEFAULT_MODEL
-    if name in AVAILABLE_MODELS:
-        return AVAILABLE_MODELS[name]
-    if "qwen" in name.lower():
-        return "qwen/qwen3.6-27b"
     if "llama" in name.lower():
         return "llama-3.1-8b-instant"
-    return AVAILABLE_MODELS[DEFAULT_MODEL]
+    return "qwen/qwen3.6-27b"
 
 
 @dataclass
@@ -235,7 +229,7 @@ def generate_elaborated_summary(paper_text: str, client: openai.OpenAI,
                                  model: str = "qwen/qwen3.6-27b") -> str:
     """Generate a 300-500 word comprehensive executive summary of a research paper."""
     words = paper_text.split()
-    excerpt = " ".join(words[:3500]) if len(words) > 3500 else paper_text
+    excerpt = " ".join(words[:1800]) if len(words) > 1800 else paper_text
 
     prompt = f"""Write a comprehensive, highly detailed 300 to 500 word executive summary of this research paper.
 
@@ -265,7 +259,7 @@ Paper text excerpt:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
-            max_tokens=1500,
+            max_tokens=1000,
         )
         return strip_think_tags(response.choices[0].message.content)
     except Exception:
@@ -277,7 +271,7 @@ Paper text excerpt:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,
-                max_tokens=1200,
+                max_tokens=900,
             )
             return strip_think_tags(fallback.choices[0].message.content)
         except Exception as e:

@@ -117,7 +117,7 @@ def render_elaborated_summary_modal(active_paper):
     """, unsafe_allow_html=True)
 
     elaborated = summary_dict.get("elaborated_summary")
-    if not elaborated and paper_text:
+    if (not elaborated or "Unable to generate" in str(elaborated) or "Error" in str(elaborated)) and paper_text:
         with st.spinner("Generating 300–500 word detailed executive summary..."):
             try:
                 from src.llm_qa import generate_elaborated_summary, get_groq_client, resolve_model_id
