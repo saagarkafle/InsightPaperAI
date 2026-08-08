@@ -7,8 +7,18 @@ def format_elaborated_summary_html(text: str) -> str:
     """Format markdown elaborated summary into beautiful Spotify-themed executive cards."""
     import re
     
+    # Strip any bulleted prompt echoes or pre-analysis text before the first section
+    text = re.sub(r'(?m)^\s*\*+\s*###.*$', '', text)
+    text = re.sub(r'(?m)^\s*(Constraints|Source Material|Analyze|Deconstruct|Draft):.*$', '', text, flags=re.IGNORECASE)
+
+    for pattern in ["### 1.", "### Core Problem", "1. Core Problem"]:
+        if pattern in text:
+            idx = text.find(pattern)
+            text = text[idx:]
+            break
+
     sections = re.split(r'(?m)^###\s+', text)
-    if len(sections) <= 1:
+    if len(sections) <= 1 and not text.startswith("###"):
         # Fallback if no H3 section headers found
         return f"""
         <div style="background: #242424; border: 1px solid #333333; border-left: 4px solid #1DB954; border-radius: 12px; padding: 20px; color: #E0E0E0; font-size: 14px; line-height: 1.75;">
@@ -36,6 +46,11 @@ def format_elaborated_summary_html(text: str) -> str:
             continue
         lines = sec.split("\n", 1)
         header = lines[0].strip()
+        
+        # Skip preamble lines that don't match expected executive section headers
+        if not re.search(r'^(1|2|3|4|Core|Proposed|Critical|Broader|Problem|Method|Finding|Impact)', header, re.IGNORECASE):
+            continue
+
         body = lines[1].strip() if len(lines) > 1 else ""
         
         icon = "📌"
@@ -80,12 +95,19 @@ def render_elaborated_summary_modal(active_paper):
     )
     summary_dict = active_paper.get("summary", {})
 
+    # ── Fallback: reconstruct from all available summary fields ──
     if not paper_text and summary_dict:
-        one_liner = summary_dict.get("one_liner", "")
-        problem = summary_dict.get("problem", "")
-        approach = summary_dict.get("approach", "")
-        findings = " ".join(summary_dict.get("key_findings", []))
-        paper_text = f"Research Paper Title: {title}. Overview: {one_liner}. Problem: {problem}. Approach: {approach}. Findings: {findings}."
+        one_liner  = summary_dict.get("one_liner", "")
+        problem    = summary_dict.get("problem", "")
+        approach   = summary_dict.get("approach", "")
+        findings   = " ".join(summary_dict.get("key_findings", []))
+        keywords   = " ".join(summary_dict.get("keywords", []))
+        field      = summary_dict.get("field", "")
+        paper_text = (
+            f"Research Paper Title: {title}. Field: {field}. "
+            f"Overview: {one_liner}. Problem: {problem}. "
+            f"Approach: {approach}. Key Findings: {findings}. Keywords: {keywords}."
+        ).strip()
 
     field = summary_dict.get("field", "Academic Research")
     diff = summary_dict.get("difficulty", "Intermediate")
@@ -116,8 +138,43 @@ def render_elaborated_summary_modal(active_paper):
     </div>
     """, unsafe_allow_html=True)
 
+    # If still no text at all, show a clear actionable warning
+    if not paper_text:
+        st.markdown("""
+        <div style="
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-left: 4px solid #e74c3c;
+            border-radius: 10px;
+            padding: 18px 22px;
+            color: #E0E0E0;
+            font-size: 14px;
+            line-height: 1.7;
+        ">
+            <span style="font-size: 18px;">⚠️</span>
+            <strong style="color: #ff6b6b;"> Paper text not available.</strong><br/>
+            The original PDF text was not saved in this session.
+            Please <strong>re-upload your PDF</strong> on the landing page to regenerate the executive summary.
+        </div>
+        """, unsafe_allow_html=True)
+        return
+
     elaborated = summary_dict.get("elaborated_summary")
-    if (not elaborated or "Unable to generate" in str(elaborated) or "Error" in str(elaborated)) and paper_text:
+    bad_keywords = [
+        "Unable to generate", "Error:", "Deconstruct the Request", "Analyze the Source",
+        "Draft the Summary", "Word Count Check", "Goal:", "Constraints:", "Source Material:",
+        "Draft - Section", "*   ### 2.", "*   ### 3.", "* ### 2.", "* ### 3.",
+        "1.  **Deconstruct", "2. Analyze", "3. Draft", "Analyze User Input",
+        "Deconstruct", "Word Count",
+    ]
+    is_corrupted = elaborated is not None and any(k in str(elaborated) for k in bad_keywords)
+
+    if is_corrupted:
+        # Force-clear the dirty cached summary so generation runs fresh
+        summary_dict.pop("elaborated_summary", None)
+        elaborated = None
+
+    if not elaborated:
         with st.spinner("Generating 300–500 word detailed executive summary..."):
             try:
                 from src.llm_qa import generate_elaborated_summary, get_groq_client, resolve_model_id
@@ -127,7 +184,9 @@ def render_elaborated_summary_modal(active_paper):
                 summary_dict["elaborated_summary"] = elaborated
                 active_paper["summary"] = summary_dict
             except Exception as e:
-                elaborated = f"Error generating summary: {e}"
+                st.error(f"⚠️ Failed to generate executive summary: {e}")
+                st.info("Please try again or re-upload your PDF.")
+                return
 
     if elaborated:
         cards_html = format_elaborated_summary_html(elaborated)
@@ -157,8 +216,6 @@ def render_elaborated_summary_modal(active_paper):
             <div>🤖 Engine: <strong style="color:#FFFFFF;">{html_mod.escape(active_model)}</strong></div>
         </div>
         """, unsafe_allow_html=True)
-    else:
-        st.info("Full paper text is needed to generate the elaborated summary.")
 
 
 def render_dashboard():

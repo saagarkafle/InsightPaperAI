@@ -68,6 +68,7 @@ RULES:
 7. When context comes from multiple source types (PDF and Dataset), clearly indicate
    which source type each piece of information came from using labels like
    "According to the PDF..." or "From the dataset...".
+8. NEVER include your inner thinking process, reasoning steps, or <think> tags. Output ONLY your final grounded answer directly to the user.
 
 You are talking to a researcher who wants deep, accurate insights — not surface-level summaries.
 """
@@ -225,6 +226,32 @@ Paper text (first 3000 words):
 # ─────────────────────────────────────────────
 # ELABORATED SUMMARY GENERATOR (300-500 WORDS)
 # ─────────────────────────────────────────────
+def _clean_summary_output(raw_text: str) -> str:
+    """Aggressively clean LLM output to start ONLY at '### 1. Core Problem'."""
+    text = strip_think_tags(raw_text)
+
+    # Find the FIRST occurrence of the actual section 1 header (with ### prefix)
+    # This is the definitive start of the real summary content.
+    h3_match = re.search(r"(?m)^###\s+1[\.\)]?\s+Core Problem", text)
+    if h3_match:
+        text = text[h3_match.start():]
+        return text.strip()
+
+    # Fallback: find "### 1." in any form
+    h3_fallback = re.search(r"(?m)^###\s+1[\.\)]?", text)
+    if h3_fallback:
+        text = text[h3_fallback.start():]
+        return text.strip()
+
+    # Last resort: strip all numbered-list preamble lines (e.g. "1. **Deconstruct...", "2. Analyze...")
+    # Remove lines beginning with number+dot or number+asterisk patterns until we hit real content
+    text = re.sub(r"(?ms)^(\d+[\.\)]\s+.*?)((?=^###)|\Z)", "", text)
+    text = re.sub(r"(?m)^\s*\*+\s*###.*$", "", text)
+    text = re.sub(r"(?m)^\s*(Constraints|Source Material|Analyze|Deconstruct|Draft|Goal):.*$", "", text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+
 def generate_elaborated_summary(paper_text: str, client: openai.OpenAI,
                                  model: str = "qwen/qwen3.6-27b") -> str:
     """Generate a 300-500 word comprehensive executive summary of a research paper."""
@@ -233,7 +260,11 @@ def generate_elaborated_summary(paper_text: str, client: openai.OpenAI,
 
     prompt = f"""Write a comprehensive, highly detailed 300 to 500 word executive summary of this research paper.
 
-Structure the summary into 4 distinct sections with Markdown headings:
+DO NOT output any prompt repetition, bulleted lists of headings, planning steps, deconstruction steps, or introductory text.
+START IMMEDIATELY WITH:
+### 1. Core Problem & Research Context
+
+Write 4 markdown sections:
 ### 1. Core Problem & Research Context
 Explain the primary problem, research gap, and motivation behind this work.
 
@@ -255,25 +286,27 @@ Paper text excerpt:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are a senior academic researcher writing thorough research paper summaries."},
+                {"role": "system", "content": "You are a senior academic researcher. Write ONLY the 4 markdown summary sections. Start immediately with ### 1. Core Problem & Research Context. No thinking, no analysis steps, no reasoning, no planning."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
             max_tokens=1000,
+            reasoning_effort="none",
         )
-        return strip_think_tags(response.choices[0].message.content)
+        return _clean_summary_output(response.choices[0].message.content)
     except Exception:
         try:
             fallback = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "You are a senior academic researcher writing thorough research paper summaries."},
+                    {"role": "system", "content": "You are a senior academic researcher. Write ONLY the 4 markdown summary sections. Start immediately with ### 1. Core Problem & Research Context. No thinking, no analysis steps, no reasoning, no planning."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,
                 max_tokens=900,
+                reasoning_effort="none",
             )
-            return strip_think_tags(fallback.choices[0].message.content)
+            return _clean_summary_output(fallback.choices[0].message.content)
         except Exception as e:
             return f"Unable to generate elaborated summary: {e}"
 
