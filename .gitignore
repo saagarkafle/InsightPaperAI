@@ -1,10 +1,36 @@
+# Virtual Environment & Secrets
 venv/
 .env
-venv/
-benchmark_results.csv
+.insightpaper_state.json
+
+# Dissertation & Thesis Files
+dissertation/
+*dissertation*
+*thesis*
+
+# LaTeX Build & Auxiliary Files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# Python & System
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 .DS_Store
+
+# Benchmark & Output Results
+benchmark_results.csv
 
 # Model weights & binaries
 models/
@@ -12,3 +38,4 @@ models/
 *.pt
 *.pth
 *.bin
+
