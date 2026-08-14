@@ -58,10 +58,10 @@ class AppController:
                 text-align: center;
             ">
                 <div style="font-size: 48px; margin-bottom: 16px;">⚙️</div>
-                <div style="font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                <div style="font-size: 22px; font-weight: 800; color: #000000; margin-bottom: 6px;">
                     Processing your document
                 </div>
-                <div style="font-size: 14px; color: #9ca3af; margin-bottom: 32px;">
+                <div style="font-size: 14px; font-weight: 600; color: #000000; margin-bottom: 32px;">
                     This usually takes 10 – 30 seconds depending on paper length.
                 </div>
             </div>

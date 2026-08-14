@@ -32,30 +32,32 @@ def render_landing():
         except ValueError:
             model_idx = 0
 
-        st.markdown("<div style='font-size:13px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;'>🤖 Select AI Model</div>", unsafe_allow_html=True)
-        selected_model = st.selectbox(
-            "Select AI Model",
-            options=model_names,
-            index=model_idx,
-            key="landing_model_select",
-            label_visibility="collapsed",
-        )
+        st.markdown("<div style='font-size:13px; font-weight:800; color:#000000; margin-bottom:6px;'>🤖 Select AI Model</div>", unsafe_allow_html=True)
+        with st.container(key="model_select_container"):
+            selected_model = st.selectbox(
+                "Select AI Model",
+                options=model_names,
+                index=model_idx,
+                key="landing_model_select",
+                label_visibility="collapsed",
+            )
         st.session_state.selected_model = selected_model
 
         # ─── Model guide hint ───
         if "Qwen" in selected_model:
             st.markdown("""
             <div style="
-                background: linear-gradient(135deg, rgba(45,212,191,0.08), rgba(99,102,241,0.08));
-                border: 1px solid rgba(45,212,191,0.25);
-                border-radius: 10px;
-                padding: 10px 14px;
-                margin-top: 6px;
+                background: #EFF6FF;
+                border: 1.5px solid #93C5FD;
+                border-radius: 14px;
+                padding: 12px 16px;
+                margin-top: 8px;
                 font-size: 12px;
-                color: var(--text-secondary);
-                line-height: 1.5;
+                color: #000000;
+                line-height: 1.55;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
             ">
-                <span style="font-weight:700; color:#2dd4bf;">🧠 Deep Analysis</span> — Best for detailed research questions,
+                <span style="font-weight:900; color:#047857;">🧠 Deep Analysis</span> — Best for detailed research questions,
                 complex multi-part queries, and thorough paper summaries. Uses Qwen 3.6 27B via Groq.
                 Slightly slower (~2 s), but produces richer, more complete answers.
             </div>
@@ -63,16 +65,17 @@ def render_landing():
         else:
             st.markdown("""
             <div style="
-                background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));
-                border: 1px solid rgba(99,102,241,0.25);
-                border-radius: 10px;
-                padding: 10px 14px;
-                margin-top: 6px;
+                background: #EFF6FF;
+                border: 1.5px solid #93C5FD;
+                border-radius: 14px;
+                padding: 12px 16px;
+                margin-top: 8px;
                 font-size: 12px;
-                color: var(--text-secondary);
-                line-height: 1.5;
+                color: #000000;
+                line-height: 1.55;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
             ">
-                <span style="font-weight:700; color:#818cf8;">⚡ Fast Inference</span> — Best for quick lookups,
+                <span style="font-weight:900; color:#4338CA;">⚡ Fast Inference</span> — Best for quick lookups,
                 rapid iterative Q&amp;A, and simple factual questions. Uses LLaMA 3.1 8B via Groq.
                 Very fast (~0.4 s), ideal when you want instant answers.
             </div>
@@ -85,25 +88,29 @@ def render_landing():
         <style>
         /* Expand & style the dropzone to look like the card */
         div.stFileUploader section[data-testid="stFileUploaderDropzone"] {
-            padding: 22px 20px !important;
+            padding: 24px 20px !important;
             border-radius: 14px !important;
+            border: 2px dashed #93C5FD !important;
+            background: #DBEAFE !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
             cursor: pointer !important;
-            min-height: 110px !important;
+            min-height: 115px !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
-            transition: border-color 0.2s ease, background 0.2s ease !important;
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.18s ease !important;
             gap: 0 !important;
         }
         div.stFileUploader section[data-testid="stFileUploaderDropzone"]:hover {
-            border-color: rgba(99,102,241,0.55) !important;
-            background: rgba(99,102,241,0.04) !important;
+            border-color: #0D9488 !important;
+            background: rgba(13, 148, 136, 0.06) !important;
+            transform: translateY(-2px);
         }
         /* PDF icon at top via pseudo-element */
         div.stFileUploader section[data-testid="stFileUploaderDropzone"]::before {
             content: "📄";
-            font-size: 28px;
+            font-size: 30px;
             line-height: 1;
             display: block;
             margin-bottom: 8px;
@@ -118,11 +125,10 @@ def render_landing():
             white-space: pre;
             display: block;
             text-align: center;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 14px;
-            line-height: 2;
-            color: inherit;
-            opacity: 0.85;
+            line-height: 1.8;
+            color: #000000;
         }
         /* Hide the "Browse files" button only — NOT the progress bar */
         div.stFileUploader section[data-testid="stFileUploaderDropzone"] > button {
@@ -139,6 +145,93 @@ def render_landing():
             margin-top: 8px !important;
             border-radius: 6px !important;
         }
+
+        /* ─── UPLOADED FILE PILL (Change black background to main blue + black text) ─── */
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"],
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderFileData"],
+        div.stFileUploader [data-testid="stFileUploaderFile"],
+        div.stFileUploader [data-testid="stFileUploaderFileData"],
+        div.stFileUploader ul,
+        div.stFileUploader li,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] ul,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] li,
+        section[data-testid="stFileUploaderDropzone"] > div > div,
+        section[data-testid="stFileUploaderDropzone"] > div > div > div,
+        section[data-testid="stFileUploaderDropzone"] [data-testid="stFileUploaderFile"],
+        section[data-testid="stFileUploaderDropzone"] [data-testid="stFileUploaderFileData"] {
+            background-color: #DBEAFE !important;
+            background: #DBEAFE !important;
+            border: 1.5px solid #3B82F6 !important;
+            border-radius: 12px !important;
+            color: #000000 !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+        }
+
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] *,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderFileData"] *,
+        div.stFileUploader [data-testid="stFileUploaderFile"] *,
+        div.stFileUploader [data-testid="stFileUploaderFileData"] *,
+        section[data-testid="stFileUploaderDropzone"] > div > div *,
+        section[data-testid="stFileUploaderDropzone"] > div > div > div * {
+            color: #000000 !important;
+            -webkit-text-fill-color: #000000 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Prevent child div background overrides */
+        section[data-testid="stFileUploaderDropzone"] > div > div > div div,
+        div.stFileUploader [data-testid="stFileUploaderFile"] div,
+        div.stFileUploader [data-testid="stFileUploaderFileData"] div {
+            background-color: transparent !important;
+        }
+
+        /* File icon container inside the pill */
+        div.stFileUploader [data-testid="stFileUploaderFile"] > div:first-child,
+        div.stFileUploader [data-testid="stFileUploaderFileData"] > div:first-child,
+        section[data-testid="stFileUploaderDropzone"] > div > div > div > div:first-child {
+            background-color: #DBEAFE !important;
+            background: #DBEAFE !important;
+            border: 1px solid #93C5FD !important;
+            border-radius: 8px !important;
+        }
+
+        /* Delete button ⓧ and + icon inside the dropzone */
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"],
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] button,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDeleteBtn"],
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDeleteBtn"] button,
+        div[data-testid="stFileUploaderFile"] button,
+        div[data-testid="stFileUploaderFileData"] button,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] button,
+        div.stFileUploader [data-testid="stFileUploaderFile"] button,
+        div.stFileUploader [data-testid="stFileUploaderFileData"] button {
+            background-color: #DBEAFE !important;
+            background: #DBEAFE !important;
+            border: 1px solid #93C5FD !important;
+            border-radius: 50% !important;
+            color: #000000 !important;
+        }
+
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"]:hover,
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] button:hover,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDeleteBtn"] button:hover,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] button:hover,
+        div.stFileUploader [data-testid="stFileUploaderFile"] button:hover,
+        div.stFileUploader [data-testid="stFileUploaderFileData"] button:hover {
+            background-color: #BFDBFE !important;
+            background: #BFDBFE !important;
+            border-color: #3B82F6 !important;
+        }
+
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] *,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] svg,
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] path,
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] svg,
+        div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] path {
+            color: #000000 !important;
+            fill: #000000 !important;
+            stroke: #000000 !important;
+        }
         </style>
         """, unsafe_allow_html=True)
         uploaded_pdf = st.file_uploader(
@@ -150,21 +243,22 @@ def render_landing():
             file_size_mb = uploaded_pdf.size / (1024 * 1024)
             st.markdown(f"""
             <div style="
-                background: rgba(29, 185, 84, 0.14);
-                border: 1px solid #1DB954;
-                border-radius: 10px;
-                padding: 10px 14px;
+                background: #DBEAFE;
+                border: 1.5px solid #3B82F6;
+                border-radius: 14px;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+                padding: 12px 16px;
                 margin-top: 8px;
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 12px;
             ">
-                <span style="font-size: 18px;">✅</span>
+                <span style="font-size: 20px;">📄</span>
                 <div style="flex: 1; overflow: hidden;">
-                    <div style="font-weight: 700; font-size: 13px; color: #FFFFFF; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                    <div style="font-weight: 800; font-size: 14px; color: #000000; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
                         {uploaded_pdf.name}
                     </div>
-                    <div style="font-size: 11px; color: #1ED760; margin-top: 2px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #000000; margin-top: 2px;">
                         Ready to process • {file_size_mb:.2f} MB
                     </div>
                 </div>
@@ -173,11 +267,12 @@ def render_landing():
 
         # ─── Process Button (always visible, disabled until paper is uploaded) ───
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        process_requested = st.button(
-            "Process Paper",
-            use_container_width=True,
-            disabled=(not uploaded_pdf) or st.session_state.processing,
-        )
+        with st.container(key="process_btn_container"):
+            process_requested = st.button(
+                "⚡ Process Paper",
+                use_container_width=True,
+                disabled=(not uploaded_pdf) or st.session_state.processing,
+            )
 
     # Steps panel
     st.markdown("""
