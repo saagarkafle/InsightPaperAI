@@ -108,7 +108,7 @@ def render_landing():
             display: block;
             margin-bottom: 8px;
         }
-        /* Hide Streamlit's default drag-and-drop instructions block */
+        /* Hide Streamlit's default drag-and-drop instructions text */
         div[data-testid="stFileUploaderDropzoneInstructions"] {
             display: none !important;
         }
@@ -124,13 +124,20 @@ def render_landing():
             color: inherit;
             opacity: 0.85;
         }
-        /* Hide the "Browse files" / "Upload" button */
+        /* Hide the "Browse files" button only — NOT the progress bar */
         div.stFileUploader section[data-testid="stFileUploaderDropzone"] > button {
             display: none !important;
         }
-        /* Hide ALL remaining children (SVG icon, any stray text nodes, etc.) */
-        div.stFileUploader section[data-testid="stFileUploaderDropzone"] > * {
+        /* Hide the SVG icon Streamlit renders by default */
+        div.stFileUploader section[data-testid="stFileUploaderDropzone"] > svg {
             display: none !important;
+        }
+        /* Style the native upload progress bar that appears during file transfer */
+        div.stFileUploader [role="progressbar"],
+        div.stFileUploader progress {
+            width: 90% !important;
+            margin-top: 8px !important;
+            border-radius: 6px !important;
         }
         </style>
         """, unsafe_allow_html=True)
