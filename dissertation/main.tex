@@ -1,4 +1,4 @@
- % This is a modified version of a template originally developed by Bill Buchanan. If you have any questions, please contact Simon Powers (S.Powers@napier.ac.uk)
+% This is a modified version of a template originally developed by Bill Buchanan. If you have any questions, please contact Simon Powers (S.Powers@napier.ac.uk)
 \documentclass[12pt,oneside,a4paper]{book}
 \usepackage{multicol}
 \usepackage[utf8]{inputenc}
@@ -21,18 +21,8 @@
 \usepackage{float} 
 \usepackage{pdfpages}
 \usepackage{chngcntr}
-%\counterwithin{figure}{section}
-%\renewcommand\thefigure{\thesection-\arabic{figure}}
-%\renewcommand\thefigure{\arabic{figure}}
-%\counterwithin{table}{section}
-%\renewcommand\thetable{\thesection-\arabic{table}}
-%\renewcommand\thetable{\arabic{table}}
 
-%\counterwithin{equation}{section}
-%\renewcommand\theequation{\thesection-\arabic{equation}}
 \usepackage{lastpage}
-
-\usepackage{fancyhdr}
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -41,13 +31,11 @@
 
 \renewcommand{\headrulewidth}{1pt}
 
-
-
-
-\usepackage{glossaries}
-
+% Enable Glossaries & Acronyms
+\usepackage[acronym,toc]{glossaries}
 \makeglossaries
 \loadglsentries{glossary.tex}
+
 \begin{document}
 \pagenumbering{roman} 
 
@@ -56,13 +44,9 @@
 \include{abstract}
 \tableofcontents
 
-
 \listoftables
 \listoffigures
 \include{ack}
-
-\pagebreak
-
 
 \pagebreak
 
@@ -70,20 +54,24 @@
 \pagenumbering{arabic}
 \setcounter{page}{1}
 \rfoot{Page \thepage \hspace{1pt} of \pageref{LastPage}}
-\include {01_introduction}
-\include {02_literature_review}
-\include {03_system_design_architecture}
-\include {04_system_implementation_prototypes}
-\include {05_fine_tuning}
-\include {06_results_evaluation}
-\include {07_conclusion}
+\include{01_introduction}
+\include{02_literature_review}
+\include{03_system_design_architecture}
+\include{04_system_implementation_prototypes}
+\include{05_fine_tuning}
+\include{06_results_evaluation}
+\include{07_conclusion}
 
 \renewcommand\bibname{References}
-\nocite{*} % Forces BibTeX to print ALL entries from mybib.bib even if not cited inline!
+\nocite{*} % Forces BibTeX to print ALL 53 entries from mybib.bib even if not cited inline!
 \bibliography{mybib}
 \bibliographystyle{apalike}
 \clearpage
-% \printglossary[type=\acronymtype]
-% \printglossary
-% \clearpage
+
+% Note: You will need to run the makeglossaries command if you are using a local installation of LaTeX to get the glossary to be printed.
+\glsaddall
+\printglossary[type=\acronymtype]
+\printglossary
+\clearpage
+% Appendices come after the references and glossary
 \end{document}
