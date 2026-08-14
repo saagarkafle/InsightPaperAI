@@ -50,10 +50,12 @@ def get_pinecone_index(index_name: str = "research-papers"):
         try:
             import streamlit as st
             api_key = st.secrets.get("PINECONE_API_KEY") or st.secrets.get("pinecone_api_key")
-            if api_key:
-                os.environ["PINECONE_API_KEY"] = api_key
         except Exception:
             pass
+
+    if api_key:
+        api_key = str(api_key).strip().strip('"').strip("'")
+        os.environ["PINECONE_API_KEY"] = api_key
 
     if not api_key:
         raise ValueError("PINECONE_API_KEY not set in environment or Streamlit secrets. Please add it to your .env file or Streamlit Cloud Secrets.")

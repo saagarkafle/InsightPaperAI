@@ -47,10 +47,12 @@ def get_groq_client() -> openai.OpenAI:
         try:
             import streamlit as st
             api_key = st.secrets.get("GROQ_API_KEY") or st.secrets.get("groq_api_key")
-            if api_key:
-                os.environ["GROQ_API_KEY"] = api_key
         except Exception:
             pass
+
+    if api_key:
+        api_key = str(api_key).strip().strip('"').strip("'")
+        os.environ["GROQ_API_KEY"] = api_key
 
     if not api_key:
         raise ValueError("GROQ_API_KEY not set in environment or Streamlit secrets. Please add it to your .env file or Streamlit Cloud Secrets.")
