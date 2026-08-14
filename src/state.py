@@ -55,43 +55,10 @@ def _deserialize_papers(papers: dict) -> dict:
 
 
 def save_app_state(st_session_state) -> None:
-    payload = {
-        "papers": _serialize_papers(st_session_state.papers),
-        "active_paper_id": st_session_state.active_paper_id,
-        "dataset_filename": st_session_state.get("dataset_filename"),
-        "dataset_id": st_session_state.get("dataset_id"),
-        "source_mode": st_session_state.get("source_mode", "both"),
-        "selected_model": st_session_state.get("selected_model"),
-    }
-    # Include dataset rows if present (but not huge)
-    dataset = st_session_state.get("dataset")
-    if dataset and len(dataset) <= 500:
-        payload["dataset"] = dataset
-
-    try:
-        with open(APP_STATE_FILE, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle)
-    except Exception:
-        pass
+    """No-op: App state is kept in per-user Streamlit session memory to prevent multi-user session state leaking."""
+    pass
 
 
 def load_app_state(st_session_state) -> None:
-    if not os.path.exists(APP_STATE_FILE):
-        return
-    try:
-        with open(APP_STATE_FILE, "r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-        st_session_state.papers = _deserialize_papers(
-            payload.get("papers", {}))
-        st_session_state.active_paper_id = payload.get("active_paper_id")
-        if st_session_state.active_paper_id not in st_session_state.papers:
-            st_session_state.active_paper_id = next(
-                iter(st_session_state.papers), None)
-        # Restore dataset state
-        st_session_state.dataset = payload.get("dataset")
-        st_session_state.dataset_filename = payload.get("dataset_filename")
-        st_session_state.dataset_id = payload.get("dataset_id")
-        st_session_state.source_mode = payload.get("source_mode", "both")
-        st_session_state.selected_model = payload.get("selected_model")
-    except Exception:
-        pass
+    """No-op: App state is kept in per-user Streamlit session memory to prevent multi-user session state leaking."""
+    pass
