@@ -42,9 +42,22 @@ class QAResponse:
 # GROQ CLIENT
 # ─────────────────────────────────────────────
 def get_groq_client() -> openai.OpenAI:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        try:
+            import streamlit as st
+            api_key = st.secrets.get("GROQ_API_KEY") or st.secrets.get("groq_api_key")
+            if api_key:
+                os.environ["GROQ_API_KEY"] = api_key
+        except Exception:
+            pass
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not set in environment or Streamlit secrets. Please add it to your .env file or Streamlit Cloud Secrets.")
+
     return openai.OpenAI(
         base_url="https://api.groq.com/openai/v1",
-        api_key=os.getenv("GROQ_API_KEY")
+        api_key=api_key
     )
 
 
