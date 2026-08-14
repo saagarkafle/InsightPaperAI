@@ -40,55 +40,58 @@ class AppController:
     def _handle_processing(self, uploaded_pdf, uploaded_dataset) -> None:
         try:
             st.session_state.processing = True
-            st.markdown("<div id='processing-status-target'></div>", unsafe_allow_html=True)
-            import streamlit.components.v1 as components
-            components.html("""
-            <script>
-                setTimeout(function() {
-                    var target = window.parent.document.getElementById('processing-status-target');
-                    if (target) {
-                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    } else {
-                        window.parent.scrollTo({ top: window.parent.document.body.scrollHeight, behavior: 'smooth' });
-                    }
-                }, 100);
-            </script>
-            """, height=0)
 
-            with st.status("Processing uploads...", expanded=True) as status:
-                # Process PDF if provided
-                if uploaded_pdf:
-                    self.model.process_uploaded_paper(
-                        uploaded_pdf, progress=st.write)
+            # ── Progress bar setup ──────────────────────────────────────────
+            # Steps: [init clients, parse PDF, chunk+embed+upsert, summarise]
+            # for PDF; dataset has slightly fewer steps.
+            pdf_steps  = ["🔌 Connecting to services...",
+                          "📄 Extracting text & figures from PDF...",
+                          "🔢 Generating embeddings & indexing...",
+                          "🧠 Generating paper summary..."]
+            ds_steps   = ["🔌 Connecting to services...",
+                          "📊 Reading & validating dataset...",
+                          "🔢 Indexing dataset chunks..."]
 
-                # Process dataset if provided
-                if uploaded_dataset:
-                    success, error_msg = self.model.process_uploaded_dataset(
-                        uploaded_dataset, progress=st.write)
-                    if not success:
-                        st.error(f"Dataset error: {error_msg}")
-                        st.session_state.processing = False
-                        return
+            steps = pdf_steps if uploaded_pdf else ds_steps
+            if uploaded_pdf and uploaded_dataset:
+                steps = pdf_steps + ["📊 Indexing dataset..."]
 
-                # Build completion label
-                parts = []
-                if uploaded_pdf:
-                    fig_count = len(
-                        st.session_state.papers.get(
-                            st.session_state.active_paper_id, {}
-                        ).get("figures", [])
-                    )
-                    parts.append(f"Paper indexed, {fig_count} figures extracted")
-                if uploaded_dataset:
-                    row_count = len(st.session_state.get("dataset") or [])
-                    parts.append(f"Dataset indexed ({row_count} rows)")
+            total_steps = len(steps)
+            step_index  = [0]   # mutable for closure
 
-                status.update(
-                    label=" · ".join(parts) + ".",
-                    state="complete",
-                )
+            progress_bar  = st.progress(0, text=steps[0])
+            status_text   = st.empty()
+
+            def advance(msg: str = "") -> None:
+                step_index[0] += 1
+                pct = min(int(step_index[0] / total_steps * 100), 99)
+                label = steps[min(step_index[0], total_steps - 1)]
+                progress_bar.progress(pct, text=label)
+                if msg:
+                    status_text.caption(f"↳ {msg}")
+
+            # ── Process uploads ─────────────────────────────────────────────
+            if uploaded_pdf:
+                self.model.process_uploaded_paper(
+                    uploaded_pdf, progress=advance)
+
+            if uploaded_dataset:
+                success, error_msg = self.model.process_uploaded_dataset(
+                    uploaded_dataset, progress=advance)
+                if not success:
+                    progress_bar.empty()
+                    status_text.empty()
+                    st.error(f"Dataset error: {error_msg}")
+                    st.session_state.processing = False
+                    return
+
+            # ── Done ────────────────────────────────────────────────────────
+            progress_bar.progress(100, text="✅ Done!")
+            status_text.empty()
             st.rerun()
+
         except Exception as error:
             st.error(f"Error: {error}")
         finally:
             st.session_state.processing = False
+
