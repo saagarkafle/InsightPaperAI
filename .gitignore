@@ -8,7 +8,11 @@ dissertation/
 *dissertation*
 *thesis*
 
-# LaTeX Build & Auxiliary Files
+# LaTeX Source, Build & Auxiliary Files
+*.tex
+*.bib
+*.sty
+*.cls
 *.aux
 *.bbl
 *.blg
