@@ -1,0 +1,52 @@
+# Virtual Environment & Secrets
+venv/
+.env
+.insightpaper_state.json
+.streamlit/secrets.toml
+secrets.toml
+
+# Dissertation & Thesis Files
+dissertation/
+*dissertation*
+*thesis*
+
+# LaTeX Source, Build & Auxiliary Files
+*.tex
+*.bib
+*.sty
+*.cls
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# Python & System
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.DS_Store
+
+# Benchmark & Output Results
+benchmark_results.csv
+output/
+
+# Sample PDFs & Data (Optional/Private)
+sample pdf/
+*.pdf
+
+# Model weights & binaries
+models/
+*.safetensors
+*.pt
+*.pth
+*.bin
+
