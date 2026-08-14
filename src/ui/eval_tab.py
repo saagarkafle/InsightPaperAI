@@ -140,9 +140,9 @@ def display_eval_results(eval_data: dict) -> None:
             {judge_html}
             """, unsafe_allow_html=True)
 
-        safe_q = html_mod.escape(r["question"][:150])
-        safe_gold = html_mod.escape(r["gold_answer"][:200])
-        safe_model = html_mod.escape(r["model_answer"][:200])
+        safe_q = html_mod.escape(str(r.get("question", ""))[:150])
+        safe_gold = html_mod.escape(str(r.get("gold_answer", ""))[:200])
+        safe_model = html_mod.escape(str(r.get("model_answer", ""))[:200])
 
         st.markdown(f"""
         <div class="eval-row">

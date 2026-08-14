@@ -274,9 +274,9 @@ def render_dashboard():
         if active_paper:
             fig_count = len(paper_figures)
             paper_title = html_mod.escape(
-                active_paper.get("title", "Research Paper")[:90])
+                str(active_paper.get("title") or "Research Paper")[:90])
             paper_filename = html_mod.escape(
-                active_paper.get("filename", ""))
+                str(active_paper.get("filename") or ""))
             word_count = active_paper.get("word_count", 0)
             chunk_count = active_paper.get("chunk_count", 0)
             vectors = active_paper.get("vectors_upserted", 0)
@@ -288,7 +288,7 @@ def render_dashboard():
             </div>
             """, unsafe_allow_html=True)
         elif has_dataset:
-            safe_ds_name = html_mod.escape(dataset_filename)
+            safe_ds_name = html_mod.escape(str(dataset_filename or ""))
             ds_rows = len(st.session_state.get("dataset") or [])
             st.markdown(f"""
             <div class="hero-card">
@@ -299,22 +299,22 @@ def render_dashboard():
 
         # ─── Summary Section ───
         if summary:
-            one_liner = html_mod.escape(summary.get("one_liner", ""))
-            problem = html_mod.escape(summary.get("problem", ""))
-            approach = html_mod.escape(summary.get("approach", ""))
-            diff = summary.get("difficulty", "Intermediate")
-            field = html_mod.escape(summary.get("field", ""))
+            one_liner = html_mod.escape(str(summary.get("one_liner") or ""))
+            problem = html_mod.escape(str(summary.get("problem") or ""))
+            approach = html_mod.escape(str(summary.get("approach") or ""))
+            diff = str(summary.get("difficulty") or "Intermediate")
+            field = html_mod.escape(str(summary.get("field") or ""))
             diff_class = f"diff-{diff.lower()}"
 
-            findings = summary.get("key_findings", [])
-            keywords = summary.get("keywords", [])
+            findings = summary.get("key_findings") or []
+            keywords = summary.get("keywords") or []
 
             findings_html = "".join(
-                f"<div class='finding-item'>• {html_mod.escape(f)}</div>"
+                f"<div class='finding-item'>• {html_mod.escape(str(f))}</div>"
                 for f in findings[:3]
             ) if findings else ""
             keywords_html = "".join(
-                f"<span class='kw-tag'>{html_mod.escape(k)}</span>"
+                f"<span class='kw-tag'>{html_mod.escape(str(k))}</span>"
                 for k in keywords
             ) if keywords else ""
 

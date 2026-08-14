@@ -88,7 +88,7 @@ def render_question_turn(prompt: str, active_paper_id: str,
             for src in chunks:
                 source_type = src.get("source_type", "pdf")
                 type_badge = "📄 PDF" if source_type == "pdf" else "📊 Dataset"
-                safe_text = html_mod.escape(src["text"][:300])
+                safe_text = html_mod.escape(str(src.get("text", ""))[:300])
                 st.markdown(f"""
                 <div class="source-chunk">
                     <span class="score-badge">score: {src['score']}</span>
