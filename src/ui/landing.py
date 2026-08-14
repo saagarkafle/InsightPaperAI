@@ -218,8 +218,8 @@ def render_landing():
         div.stFileUploader section[data-testid="stFileUploaderDropzone"] button:hover,
         div.stFileUploader [data-testid="stFileUploaderFile"] button:hover,
         div.stFileUploader [data-testid="stFileUploaderFileData"] button:hover {
-            background-color: #BFDBFE !important;
-            background: #BFDBFE !important;
+            background-color: #DBEAFE !important;
+            background: #DBEAFE !important;
             border-color: #3B82F6 !important;
         }
 

@@ -359,14 +359,19 @@ def render_dashboard():
             options.append('Evaluate')
 
         with nav_col:
-            st.markdown("<div class='vertical-tabbar'>", unsafe_allow_html=True)
-            try:
-                idx = options.index(st.session_state.get('selected_tab', options[0]))
-            except ValueError:
-                idx = 0
-            selected = st.radio("", options=options, index=idx, key="vertical_nav")
-            st.session_state['selected_tab'] = selected
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(key="vertical_tabbar_container"):
+                try:
+                    idx = options.index(st.session_state.get('selected_tab', options[0]))
+                except ValueError:
+                    idx = 0
+                selected = st.radio(
+                    "Navigation",
+                    options=options,
+                    index=idx,
+                    key="vertical_nav",
+                    label_visibility="collapsed",
+                )
+                st.session_state['selected_tab'] = selected
 
         with content_col:
             tab_chat = st.container()
@@ -410,9 +415,11 @@ def render_dashboard():
                 key="dashboard_source_mode",
             )
             st.session_state.source_mode = reverse_map.get(source_mode, "both")
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-        reset_requested = st.button(
-            "Start new session", use_container_width=True)
+        with st.container(key="new_session_btn_container"):
+            reset_requested = st.button(
+                "Start new session",
+                key="btn_new_session",
+                use_container_width=True,
+            )
 
     return tab_chat, tab_figures, tab_search, tab_stats, tab_evaluate, reset_requested

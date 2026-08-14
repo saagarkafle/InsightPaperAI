@@ -438,27 +438,30 @@ body,
     padding: 5px 10px;
     border-radius: 999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.8px;
+    background: rgba(4, 120, 87, 0.15);
+    border: 1px solid rgba(4, 120, 87, 0.4);
+    color: #047857;
 }
 
 .diff-beginner {
-    background: rgba(29, 185, 84, 0.2);
-    border: 1px solid rgba(29, 185, 84, 0.4);
-    color: #1ED760;
+    background: rgba(4, 120, 87, 0.15);
+    border: 1px solid rgba(4, 120, 87, 0.4);
+    color: #047857;
 }
 
 .diff-intermediate {
-    background: rgba(245, 158, 11, 0.2);
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    color: #FBBF24;
+    background: rgba(4, 120, 87, 0.15);
+    border: 1px solid rgba(4, 120, 87, 0.4);
+    color: #047857;
 }
 
 .diff-advanced {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    color: #F87171;
+    background: rgba(4, 120, 87, 0.15);
+    border: 1px solid rgba(4, 120, 87, 0.4);
+    color: #047857;
 }
 
 /* ──────── FIGURES CARDS ──────── */
@@ -595,52 +598,82 @@ body,
     border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
-/* ──────── VERTICAL TABBAR ──────── */
-.vertical-tabbar {
-    padding: 6px 4px;
+/* ──────── VERTICAL TABBAR / RADIO NAVIGATION ──────── */
+div[data-testid="stRadio"],
+div.stRadio,
+.vertical-tabbar,
+[data-testid="stVerticalBlock"] [data-testid="stRadio"] {
+    padding: 4px 0;
 }
-.vertical-tabbar .stRadio > div {
+
+div[data-testid="stRadio"] > div,
+div.stRadio > div {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
-.vertical-tabbar input[type="radio"] + label,
-.vertical-tabbar [data-testid="stRadio"] label,
-.vertical-tabbar [data-testid="stRadio"] div[role="radiogroup"] label {
-    display: block;
-    padding: 10px 14px;
-    border-radius: 500px;
-    border: 1px solid #BFDBFE;
-    background: #EFF6FF;
+
+/* Base radio pill option styling */
+div[data-testid="stRadio"] label,
+div.stRadio label,
+div[data-testid="stRadio"] [data-baseweb="radio"] {
+    display: flex !important;
+    align-items: center !important;
+    padding: 6px 14px !important;
+    min-height: 34px !important;
+    border-radius: 500px !important;
+    border: 1.5px solid #93C5FD !important;
+    background: #EFF6FF !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 700 !important;
-    font-size: 13px;
-    transition: all 0.15s ease;
+    font-weight: 800 !important;
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
 }
-.vertical-tabbar [data-testid="stRadio"] label p,
-.vertical-tabbar [data-testid="stRadio"] label span,
-.vertical-tabbar [data-testid="stRadio"] label div,
-.vertical-tabbar input[type="radio"] + label p,
-.vertical-tabbar input[type="radio"] + label span,
-.vertical-tabbar input[type="radio"] + label div {
+
+div[data-testid="stRadio"] label:hover,
+div.stRadio label:hover {
+    border-color: #3B82F6 !important;
+    background: #DBEAFE !important;
+}
+
+/* Force dark black on ALL radio option texts */
+div[data-testid="stRadio"] *,
+div.stRadio *,
+div[data-testid="stRadio"] label *,
+div.stRadio label *,
+div[data-testid="stRadio"] p,
+div[data-testid="stRadio"] span,
+div[data-testid="stRadio"] div,
+div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p,
+div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] span {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
-.vertical-tabbar input[type="radio"]:checked + label,
-.vertical-tabbar [data-testid="stRadio"] label:has(input:checked) {
+
+/* Checked/Active Radio Option */
+div[data-testid="stRadio"] label:has(input:checked),
+div[data-testid="stRadio"] [aria-checked="true"],
+div.stRadio label:has(input:checked) {
     background: #1DB954 !important;
     border-color: #1DB954 !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 800 !important;
+    box-shadow: 0 2px 6px rgba(29, 185, 84, 0.25) !important;
 }
-.vertical-tabbar input[type="radio"]:checked + label *,
-.vertical-tabbar [data-testid="stRadio"] label:has(input:checked) * {
+
+div[data-testid="stRadio"] label:has(input:checked) *,
+div[data-testid="stRadio"] [aria-checked="true"] * {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 800 !important;
+    font-weight: 900 !important;
 }
 
 /* ──────── BUTTONS (Emerald Pill Tag Theme matching Pinecone/Groq/PyMuPDF badges) ──────── */
@@ -707,7 +740,7 @@ div[data-testid="stButton"] > button:disabled span {
     font-weight: 800 !important;
 }
 
-/* ──────── SELECTBOX & DROPDOWN (Matches Emerald Pill Theme) ──────── */
+/* ──────── SELECTBOX & DROPDOWN ──────── */
 [data-testid="stSelectbox"] label,
 [data-testid="stRadio"] label,
 [data-testid="stMultiSelect"] label {
@@ -726,28 +759,27 @@ div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
 div[data-baseweb="select"] > div,
 div[data-baseweb="select"] div[role="combobox"],
 div[data-testid="stSelectbox"] div[role="combobox"] {
-    background: rgba(4, 120, 87, 0.15) !important;
-    background-color: rgba(4, 120, 87, 0.15) !important;
-    border: 1.5px solid #047857 !important;
-    border-radius: 500px !important;
-    color: #047857 !important;
-    -webkit-text-fill-color: #047857 !important;
-    font-weight: 800 !important;
-    font-size: 14px !important;
-    box-shadow: 0 2px 8px rgba(4, 120, 87, 0.12) !important;
-    transition: all 0.15s ease !important;
-    padding-left: 14px !important;
-    padding-right: 14px !important;
-    min-height: 42px !important;
+    background: #EFF6FF !important;
+    background-color: #EFF6FF !important;
+    border: 1.5px solid #93C5FD !important;
+    border-radius: 10px !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04) !important;
+    transition: border-color 0.15s ease, background 0.15s ease !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    min-height: 38px !important;
     cursor: pointer !important;
 }
 
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
 div[data-baseweb="select"] > div:hover {
-    background: rgba(4, 120, 87, 0.25) !important;
-    background-color: rgba(4, 120, 87, 0.25) !important;
-    border: 1.5px solid #047857 !important;
-    box-shadow: 0 4px 14px rgba(4, 120, 87, 0.25) !important;
+    border-color: #3B82F6 !important;
+    background: #DBEAFE !important;
+    background-color: #DBEAFE !important;
 }
 
 /* Inner elements inside the selectbox trigger */
@@ -758,9 +790,9 @@ div[data-baseweb="select"] div,
 div[data-baseweb="select"] span,
 div[data-baseweb="select"] p,
 div[data-testid="stSelectbox"] [aria-selected="true"] {
-    color: #047857 !important;
-    -webkit-text-fill-color: #047857 !important;
-    font-weight: 800 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    font-weight: 700 !important;
     background: transparent !important;
     background-color: transparent !important;
 }
@@ -768,9 +800,9 @@ div[data-testid="stSelectbox"] [aria-selected="true"] {
 div[data-testid="stSelectbox"] svg,
 div[data-baseweb="select"] svg,
 div[data-testid="stSelectbox"] [data-baseweb="select"] svg {
-    fill: #047857 !important;
-    color: #047857 !important;
-    stroke: #047857 !important;
+    fill: #000000 !important;
+    color: #000000 !important;
+    stroke: #000000 !important;
 }
 
 /* Dropdown popover list styling */
@@ -780,10 +812,10 @@ ul[role="listbox"],
 [data-baseweb="menu"] {
     background-color: #EFF6FF !important;
     background: #EFF6FF !important;
-    border: 1.5px solid #3B82F6 !important;
-    border-radius: 14px !important;
+    border: 1.5px solid #93C5FD !important;
+    border-radius: 10px !important;
     color: #000000 !important;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15) !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12) !important;
     overflow: hidden !important;
     padding: 4px !important;
 }
@@ -797,8 +829,8 @@ ul[role="listbox"] li,
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
     font-weight: 700 !important;
-    padding: 10px 16px !important;
-    border-radius: 8px !important;
+    padding: 8px 14px !important;
+    border-radius: 6px !important;
     margin: 2px 0 !important;
     transition: background-color 0.15s ease, color 0.15s ease !important;
     cursor: pointer !important;
@@ -814,7 +846,7 @@ ul[role="listbox"] li *,
     font-weight: 700 !important;
 }
 
-/* Option Hover & Active State: Navy Blue (#1E3A8A) background + White text */
+/* Option Hover & Active State: #DBEAFE background + Black text */
 li[role="option"]:hover,
 li[role="option"]:focus,
 li[role="option"][aria-selected="true"],
@@ -826,10 +858,10 @@ ul[role="listbox"] li[aria-selected="true"],
 [data-baseweb="menu"] li:focus,
 [data-baseweb="menu"] li[aria-selected="true"],
 [data-baseweb="menu"] [aria-selected="true"] {
-    background-color: #1E3A8A !important;
-    background: #1E3A8A !important;
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
+    background-color: #DBEAFE !important;
+    background: #DBEAFE !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
     font-weight: 800 !important;
 }
 
@@ -844,8 +876,8 @@ ul[role="listbox"] li[aria-selected="true"] *,
 [data-baseweb="menu"] li:focus *,
 [data-baseweb="menu"] li[aria-selected="true"] *,
 [data-baseweb="menu"] [aria-selected="true"] * {
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 
 /* ──────── TABS ──────── */
@@ -973,8 +1005,8 @@ div[data-testid="stFileUploader"] [data-testid="stFileUploaderDeleteBtn"] button
 [data-testid="stFileUploaderFile"] button:hover,
 [data-testid="stFileUploaderFileData"] button:hover,
 [data-testid="stFileUploader"] button:hover {
-    background-color: #BFDBFE !important;
-    background: #BFDBFE !important;
+    background-color: #DBEAFE !important;
+    background: #DBEAFE !important;
     border-color: #3B82F6 !important;
 }
 
@@ -1092,6 +1124,68 @@ div.stFileUploader [data-testid="stFileUploaderDeleteBtn"] path,
     color: #047857 !important;
     font-weight: 700;
     border-radius: 6px;
+}
+
+/* ──────── CHAT INPUT ("Ask anything about this paper...") ──────── */
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div {
+    background-color: #DBEAFE !important;
+    background: #DBEAFE !important;
+}
+
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] > div,
+[data-testid="stChatInput"] [data-baseweb="base-input"],
+[data-testid="stChatInput"] [data-baseweb="textarea"],
+[data-testid="stChatInputTextArea"] {
+    background-color: #DBEAFE !important;
+    background: #DBEAFE !important;
+    border: 1.5px solid #93C5FD !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+}
+
+[data-testid="stChatInput"]:focus-within,
+[data-testid="stChatInput"] > div:focus-within {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.15) !important;
+}
+
+[data-testid="stChatInput"] textarea,
+[data-testid="stChatInputTextArea"] textarea {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder,
+[data-testid="stChatInputTextArea"] textarea::placeholder {
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stChatInput"] button {
+    background-color: #DBEAFE !important;
+    background: #DBEAFE !important;
+    border: 1px solid #93C5FD !important;
+    border-radius: 50% !important;
+    color: #047857 !important;
+}
+
+[data-testid="stChatInput"] button:hover {
+    background-color: rgba(4, 120, 87, 0.15) !important;
+    border-color: #047857 !important;
+}
+
+[data-testid="stChatInput"] button svg {
+    fill: #047857 !important;
+    stroke: #047857 !important;
+    color: #047857 !important;
 }
 
 /* ──────── EXPANDERS ──────── */
