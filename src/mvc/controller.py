@@ -16,6 +16,11 @@ class AppController:
         self.view.render_shell()
 
         if not self.model.has_any_source():
+            # If we are mid-processing don't render the landing page at all —
+            # _handle_processing will render the progress UI itself.
+            if st.session_state.get("processing"):
+                return
+
             result = self.view.render_landing_screen()
             uploaded_pdf = result.get("uploaded_pdf")
             uploaded_dataset = result.get("uploaded_dataset")
@@ -37,43 +42,65 @@ class AppController:
 
         self.view.render_footer()
 
+
     def _handle_processing(self, uploaded_pdf, uploaded_dataset) -> None:
         try:
             st.session_state.processing = True
 
-            # ── Progress bar setup ──────────────────────────────────────────
-            # Steps: [init clients, parse PDF, chunk+embed+upsert, summarise]
-            # for PDF; dataset has slightly fewer steps.
-            pdf_steps  = ["🔌 Connecting to services...",
-                          "📄 Extracting text & figures from PDF...",
-                          "🔢 Generating embeddings & indexing...",
-                          "🧠 Generating paper summary..."]
-            ds_steps   = ["🔌 Connecting to services...",
-                          "📊 Reading & validating dataset...",
-                          "🔢 Indexing dataset chunks..."]
+            # ── Full-page progress UI ────────────────────────────────────────
+            st.markdown("""
+            <div style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 60px 20px 40px;
+                text-align: center;
+            ">
+                <div style="font-size: 48px; margin-bottom: 16px;">⚙️</div>
+                <div style="font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                    Processing your document
+                </div>
+                <div style="font-size: 14px; color: #9ca3af; margin-bottom: 32px;">
+                    This usually takes 10 – 30 seconds depending on paper length.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Steps
+            pdf_steps = [
+                "🔌 Connecting to services...",
+                "📄 Extracting text & figures from PDF...",
+                "🔢 Generating embeddings & indexing vectors...",
+                "🧠 Generating paper summary...",
+            ]
+            ds_steps = [
+                "🔌 Connecting to services...",
+                "📊 Reading & validating dataset...",
+                "🔢 Indexing dataset chunks...",
+            ]
 
             steps = pdf_steps if uploaded_pdf else ds_steps
             if uploaded_pdf and uploaded_dataset:
                 steps = pdf_steps + ["📊 Indexing dataset..."]
 
             total_steps = len(steps)
-            step_index  = [0]   # mutable for closure
+            step_index  = [0]
 
-            progress_bar  = st.progress(0, text=steps[0])
-            status_text   = st.empty()
+            progress_bar = st.progress(0, text=steps[0])
+            status_text  = st.empty()
 
             def advance(msg: str = "") -> None:
                 step_index[0] += 1
-                pct = min(int(step_index[0] / total_steps * 100), 99)
+                pct   = min(int(step_index[0] / total_steps * 100), 99)
                 label = steps[min(step_index[0], total_steps - 1)]
                 progress_bar.progress(pct, text=label)
                 if msg:
                     status_text.caption(f"↳ {msg}")
 
-            # ── Process uploads ─────────────────────────────────────────────
+            # ── Process uploads ──────────────────────────────────────────────
             if uploaded_pdf:
-                self.model.process_uploaded_paper(
-                    uploaded_pdf, progress=advance)
+                self.model.process_uploaded_paper(uploaded_pdf, progress=advance)
 
             if uploaded_dataset:
                 success, error_msg = self.model.process_uploaded_dataset(
@@ -85,8 +112,7 @@ class AppController:
                     st.session_state.processing = False
                     return
 
-            # ── Done ────────────────────────────────────────────────────────
-            progress_bar.progress(100, text="✅ Done!")
+            progress_bar.progress(100, text="✅ Done! Loading dashboard...")
             status_text.empty()
             st.rerun()
 
@@ -94,4 +120,5 @@ class AppController:
             st.error(f"Error: {error}")
         finally:
             st.session_state.processing = False
+
 
