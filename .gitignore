@@ -2,6 +2,8 @@
 venv/
 .env
 .insightpaper_state.json
+.streamlit/secrets.toml
+secrets.toml
 
 # Dissertation & Thesis Files
 dissertation/
@@ -35,6 +37,11 @@ __pycache__/
 
 # Benchmark & Output Results
 benchmark_results.csv
+output/
+
+# Sample PDFs & Data (Optional/Private)
+sample pdf/
+*.pdf
 
 # Model weights & binaries
 models/

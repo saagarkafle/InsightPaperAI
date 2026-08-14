@@ -1,10 +1,0 @@
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-[embedder] Loading specified model: all-MiniLM-L6-v2
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11733.75it/s]
-Detected 30 inline context records. Running corpus-wide retrieval benchmark...
-
-Evaluation results:
-
-Retrieval recall@5: 0.2333
-Retrieval MRR: 0.1161
-LLM not called; QA metrics skipped.
