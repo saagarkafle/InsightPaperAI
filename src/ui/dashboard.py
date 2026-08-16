@@ -365,7 +365,7 @@ def render_dashboard():
                 except ValueError:
                     idx = 0
                 selected = st.radio(
-                    "Navigation",
+                    "",
                     options=options,
                     index=idx,
                     key="vertical_nav",

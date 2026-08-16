@@ -598,82 +598,113 @@ body,
     border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
-/* ──────── VERTICAL TABBAR / RADIO NAVIGATION ──────── */
-div[data-testid="stRadio"],
-div.stRadio,
-.vertical-tabbar,
-[data-testid="stVerticalBlock"] [data-testid="stRadio"] {
-    padding: 4px 0;
+/* ──────── VERTICAL MENU BAR NAVIGATION ──────── */
+.st-key-vertical_tabbar_container,
+div[class*="vertical_tabbar_container"],
+.vertical-tabbar {
+    background: #EFF6FF !important;
+    border: 1.5px solid #93C5FD !important;
+    border-radius: 14px !important;
+    padding: 6px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
 }
 
-div[data-testid="stRadio"] > div,
-div.stRadio > div {
+.st-key-vertical_tabbar_container div[data-testid="stRadio"] > div,
+div[class*="vertical_tabbar_container"] div[data-testid="stRadio"] > div,
+.vertical-tabbar .stRadio > div,
+div[data-testid="stRadio"] > div {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
 }
 
-/* Base radio pill option styling */
+/* Hide the radio circle dot completely */
+div[data-testid="stRadio"] [data-baseweb="radio"] > div:first-child,
+div.stRadio [data-baseweb="radio"] > div:first-child,
+div[data-testid="stRadio"] div[role="radiogroup"] label > div:first-child,
+div.stRadio div[role="radiogroup"] label > div:first-child,
+div[data-testid="stRadio"] input[type="radio"] {
+    display: none !important;
+}
+
+/* Menu item styling (Flat, clean, list-style menu item) */
+.st-key-vertical_tabbar_container div[data-testid="stRadio"] label,
+div[class*="vertical_tabbar_container"] div[data-testid="stRadio"] label,
+.vertical-tabbar [data-testid="stRadio"] label,
 div[data-testid="stRadio"] label,
 div.stRadio label,
 div[data-testid="stRadio"] [data-baseweb="radio"] {
     display: flex !important;
     align-items: center !important;
-    padding: 6px 14px !important;
-    min-height: 34px !important;
-    border-radius: 500px !important;
-    border: 1.5px solid #93C5FD !important;
-    background: #EFF6FF !important;
+    justify-content: flex-start !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    border-left: 3px solid transparent !important;
+    background: transparent !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 800 !important;
-    font-size: 13px !important;
-    line-height: 1.3 !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
     transition: all 0.15s ease !important;
     cursor: pointer !important;
     margin: 0 !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    box-shadow: none !important;
 }
 
+/* Hover Menu Item */
+.st-key-vertical_tabbar_container div[data-testid="stRadio"] label:hover,
+div[class*="vertical_tabbar_container"] div[data-testid="stRadio"] label:hover,
 div[data-testid="stRadio"] label:hover,
 div.stRadio label:hover {
-    border-color: #3B82F6 !important;
     background: #DBEAFE !important;
+    border-left: 3px solid #93C5FD !important;
+    color: #000000 !important;
 }
 
-/* Force dark black on ALL radio option texts */
-div[data-testid="stRadio"] *,
-div.stRadio *,
-div[data-testid="stRadio"] label *,
-div.stRadio label *,
+.vertical-tabbar [data-testid="stRadio"] label p,
+.vertical-tabbar [data-testid="stRadio"] label span,
+.vertical-tabbar [data-testid="stRadio"] label div,
+.vertical-tabbar input[type="radio"] + label p,
+.vertical-tabbar input[type="radio"] + label span,
+.vertical-tabbar input[type="radio"] + label div,
+div[data-testid="stRadio"] label p,
+div[data-testid="stRadio"] label span,
+div[data-testid="stRadio"] label div,
 div[data-testid="stRadio"] p,
 div[data-testid="stRadio"] span,
 div[data-testid="stRadio"] div,
-div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p,
-div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] span {
+div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
     margin: 0 !important;
     padding: 0 !important;
 }
 
-/* Checked/Active Radio Option */
+/* Active / Selected Menu Item */
+.st-key-vertical_tabbar_container div[data-testid="stRadio"] label:has(input:checked),
+div[class*="vertical_tabbar_container"] div[data-testid="stRadio"] label:has(input:checked),
 div[data-testid="stRadio"] label:has(input:checked),
 div[data-testid="stRadio"] [aria-checked="true"],
-div.stRadio label:has(input:checked) {
-    background: #1DB954 !important;
-    border-color: #1DB954 !important;
+.vertical-tabbar input[type="radio"]:checked + label {
+    background: rgba(4, 120, 87, 0.15) !important;
+    border-left: 4px solid #047857 !important;
+    border-radius: 8px !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    box-shadow: 0 2px 6px rgba(29, 185, 84, 0.25) !important;
+    font-weight: 800 !important;
+    box-shadow: 0 1px 4px rgba(4, 120, 87, 0.08) !important;
 }
 
+.st-key-vertical_tabbar_container div[data-testid="stRadio"] label:has(input:checked) *,
+div[class*="vertical_tabbar_container"] div[data-testid="stRadio"] label:has(input:checked) *,
 div[data-testid="stRadio"] label:has(input:checked) *,
-div[data-testid="stRadio"] [aria-checked="true"] * {
+div[data-testid="stRadio"] [aria-checked="true"] *,
+.vertical-tabbar input[type="radio"]:checked + label * {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
-    font-weight: 900 !important;
+    font-weight: 800 !important;
 }
 
 /* ──────── BUTTONS (Emerald Pill Tag Theme matching Pinecone/Groq/PyMuPDF badges) ──────── */
