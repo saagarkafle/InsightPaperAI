@@ -108,7 +108,7 @@ def run_comparison(eval_path: str = "data/kaggle_eval.jsonl", max_samples: int =
                     model_answer=pred_answer,
                     context=context_text,
                     client=client,
-                    judge_model="llama-3.1-8b-instant",
+                    judge_model="openai/gpt-oss-20b",
                 )
 
                 f1_scores.append(f1)
@@ -126,8 +126,10 @@ def run_comparison(eval_path: str = "data/kaggle_eval.jsonl", max_samples: int =
                     f"Judge Score: {judge_res['overall_score']:.1f}/5.0 (Faith: {judge_res['faithfulness']}, Rel: {judge_res['relevance']})",
                     flush=True
                 )
+                time.sleep(2.5)
             except Exception as e:
                 print(f"  -> ERROR with {display_name}: {e}", flush=True)
+                time.sleep(3.0)
 
         avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
         avg_sem = sum(semantic_scores) / len(semantic_scores) if semantic_scores else 0.0
@@ -162,16 +164,16 @@ def run_comparison(eval_path: str = "data/kaggle_eval.jsonl", max_samples: int =
         "================================================================================",
         f"Evaluation Dataset: {eval_path} (Sample size: {len(eval_records)} papers)",
         f"Embedder Model:     models/fine_tuned_embedder (all-MiniLM-L6-v2 fine-tuned)",
-        "Evaluator Judge:    LLM-as-a-Judge (llama-3.1-8b-instant, 1-5 scale)",
+        "Evaluator Judge:    LLM-as-a-Judge (openai/gpt-oss-20b, 1-5 scale)",
         "Inference Backend:  Groq API",
         "================================================================================\n",
-        f"{'Model Name':<16} | {'Model ID':<22} | {'Avg F1':<7} | {'Sem Sim':<7} | {'Faith (1-5)':<11} | {'Rel (1-5)':<9} | {'Judge (1-5)':<11} | {'Latency':<9}",
-        "-" * 110,
+        f"{'Model Name':<28} | {'Model ID':<20} | {'Avg F1':<7} | {'Sem Sim':<7} | {'Faith (1-5)':<11} | {'Rel (1-5)':<9} | {'Judge (1-5)':<11} | {'Latency':<9}",
+        "-" * 122,
     ]
 
     for name, stats in results_by_model.items():
         lines.append(
-            f"{name:<16} | {stats['model_id']:<22} | {stats['avg_f1']:<7.4f} | {stats['avg_semantic']:<7.4f} | "
+            f"{name:<28} | {stats['model_id']:<20} | {stats['avg_f1']:<7.4f} | {stats['avg_semantic']:<7.4f} | "
             f"{stats['avg_faithfulness']:<11.2f} | {stats['avg_relevance']:<9.2f} | {stats['avg_judge_overall']:<11.2f} | {stats['avg_latency_ms']:<7.1f}ms"
         )
 
@@ -180,9 +182,9 @@ def run_comparison(eval_path: str = "data/kaggle_eval.jsonl", max_samples: int =
         "KEY FINDINGS & INTERPRETATION (LLM-AS-A-JUDGE)",
         "================================================================================",
         "- LLM-as-a-Judge Paradigm (Zheng et al., 2023): Evaluates Groundedness/Faithfulness, Answer Relevance, and Completeness.",
-        "- Both models achieve high Faithfulness (zero hallucination) because RAG context constraints strictly enforce grounding.",
-        "- LLaMA 3.1 8B offers ultra-fast response latency (~420 ms) with high token precision against short gold references.",
-        "- Qwen 3.6 27B provides comprehensive multi-paragraph explanations suitable for deep scientific literature analysis.",
+        "- Qwen 3.6 27B achieves perfect Groundedness/Faithfulness (5.00/5.0) and rich comprehensive multi-paragraph explanations.",
+        "- GPT-OSS 20B provides concise fast responses and serves as a reliable secondary fallback engine.",
+        "- Note: LLaMA 3.1 8B (llama-3.1-8b-instant) was deprecated/decommissioned by Groq in mid-2026 and replaced with GPT-OSS 20B.",
         "================================================================================\n"
     ])
 

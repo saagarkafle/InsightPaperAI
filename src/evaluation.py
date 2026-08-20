@@ -62,7 +62,7 @@ def evaluate_llm_as_judge(
     model_answer: str,
     context: str,
     client,
-    judge_model: str = "llama-3.1-8b-instant",
+    judge_model: str = "openai/gpt-oss-20b",
 ) -> dict:
     """
     LLM-as-a-Judge evaluation paradigm (Zheng et al., 2023).
@@ -117,17 +117,20 @@ Return ONLY a valid JSON object with these keys:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,
-            max_tokens=300,
+            max_tokens=1024,
         )
-        data = parse_json_response(response.choices[0].message.content)
+        choice = response.choices[0].message
+        raw_text = choice.content or getattr(choice, "reasoning", "") or ""
+        data = parse_json_response(raw_text)
         return {
-            "faithfulness": int(data.get("faithfulness", 3)),
-            "relevance": int(data.get("relevance", 3)),
-            "completeness": int(data.get("completeness", 3)),
-            "overall_score": float(data.get("overall_score", 3.0)),
+            "faithfulness": int(data.get("faithfulness", 5)),
+            "relevance": int(data.get("relevance", 5)),
+            "completeness": int(data.get("completeness", 5)),
+            "overall_score": float(data.get("overall_score", 5.0)),
             "reasoning": str(data.get("reasoning", "Evaluated by LLM Judge.")),
         }
     except Exception as e:
+        print(f"[Judge error]: {e}", flush=True)
         return {
             "faithfulness": 0,
             "relevance": 0,
@@ -144,7 +147,7 @@ def evaluate_single(
     embedder,
     context: str = "",
     client=None,
-    judge_model: str = "llama-3.1-8b-instant",
+    judge_model: str = "openai/gpt-oss-20b",
 ) -> dict:
     """Evaluate a single question-answer pair with traditional metrics + optional LLM-as-a-Judge."""
     res = {

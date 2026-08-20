@@ -14,7 +14,7 @@ from src.llm_utils import parse_json_response, strip_think_tags
 # ─────────────────────────────────────────────
 AVAILABLE_MODELS = {
     "Qwen 3.6 27B (Deep Analysis)": "qwen/qwen3.6-27b",
-    "LLaMA 3.1 8B (Fast Inference)": "llama-3.1-8b-instant",
+    "GPT-OSS 20B (Fast Inference)": "openai/gpt-oss-20b",
 }
 
 DEFAULT_MODEL = "Qwen 3.6 27B (Deep Analysis)"
@@ -23,8 +23,8 @@ DEFAULT_MODEL = "Qwen 3.6 27B (Deep Analysis)"
 def resolve_model_id(display_name: str | None = None) -> str:
     """Resolve a human-readable model display name to its Groq model ID."""
     name = display_name or DEFAULT_MODEL
-    if "llama" in name.lower():
-        return "llama-3.1-8b-instant"
+    if "llama" in name.lower() or "gpt-oss" in name.lower() or "fast" in name.lower():
+        return "openai/gpt-oss-20b"
     return "qwen/qwen3.6-27b"
 
 
@@ -212,10 +212,13 @@ Paper text (first 3000 words):
         )
         return parse_json_response(response.choices[0].message.content)
     except Exception as primary_error:
-        # Fallback to llama-3.1-8b-instant if primary model summary generation failed
+        import traceback
+        print(f"[InsightPaper] Primary summary generation failed ({model}): {primary_error}")
+        traceback.print_exc()
+        # Fallback to openai/gpt-oss-20b if primary model summary generation failed
         try:
             fallback_response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[
                     {"role": "system", "content": "You are an expert at analyzing research papers. Return only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -224,7 +227,9 @@ Paper text (first 3000 words):
                 max_tokens=1000,
             )
             return parse_json_response(fallback_response.choices[0].message.content)
-        except Exception:
+        except Exception as fallback_error:
+            print(f"[InsightPaper] Fallback summary generation also failed: {fallback_error}")
+            traceback.print_exc()
             return {
                 "title_detected": "Unknown",
                 "one_liner": "Summary unavailable",
@@ -312,7 +317,7 @@ Paper text excerpt:
     except Exception:
         try:
             fallback = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[
                     {"role": "system", "content": "You are a senior academic researcher. Write ONLY the 4 markdown summary sections. Start immediately with ### 1. Core Problem & Research Context. No thinking, no analysis steps, no reasoning, no planning."},
                     {"role": "user", "content": prompt}

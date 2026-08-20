@@ -18,7 +18,7 @@ def render_landing():
             <div class="hero-title">Ask questions about any paper<br/><span class="hero-highlight">with AI-powered analysis</span></div>
             <div class="hero-copy">Upload a PDF, let the app extract text and figures, then ask grounded questions with source citations and semantic search.</div>
             <div class="hero-actions"><span class="chip">📄 Upload PDF</span><span class="chip">🔍 Semantic search</span><span class="chip">🖼 Figure extraction</span></div>
-            <div class="hero-badge-row"><span class="pill-tag">Pinecone</span><span class="pill-tag">Groq</span><span class="pill-tag">PyMuPDF</span><span class="pill-tag">Qwen 3.6 / LLaMA 3.1</span></div>
+            <div class="hero-badge-row"><span class="pill-tag">Pinecone</span><span class="pill-tag">Groq</span><span class="pill-tag">PyMuPDF</span><span class="pill-tag">Qwen 3.6 / GPT-OSS 20B</span></div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -76,7 +76,7 @@ def render_landing():
                 box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
             ">
                 <span style="font-weight:900; color:#4338CA;">⚡ Fast Inference</span> — Best for quick lookups,
-                rapid iterative Q&amp;A, and simple factual questions. Uses LLaMA 3.1 8B via Groq.
+                rapid iterative Q&amp;A, and simple factual questions. Uses GPT-OSS 20B via Groq.
                 Very fast (~0.4 s), ideal when you want instant answers.
             </div>
             """, unsafe_allow_html=True)

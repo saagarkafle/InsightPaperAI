@@ -383,9 +383,9 @@ def render_dashboard():
     # ─── Right Sidebar ───
     with dashboard_right:
         # ─── Model Selector (Concise Dashboard Labels) ───
-        dashboard_model_names = ["Qwen (Deep Analysis)", "LLaMA (Fast Inference)"]
+        dashboard_model_names = ["Qwen (Deep Analysis)", "GPT-OSS (Fast Inference)"]
         current_model = st.session_state.get("selected_model", "")
-        if "llama" in str(current_model).lower():
+        if "llama" in str(current_model).lower() or "gpt-oss" in str(current_model).lower() or "fast" in str(current_model).lower():
             model_idx = 1
         else:
             model_idx = 0
